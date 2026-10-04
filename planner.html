@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Seating Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F1EA; --panel:#FFFFFF; --line:#DED7C7; --ink:#2E2A22; --soft:#6E6553;
+    --olive:#6C7043; --terra:#A8452E; --gold:#B8934E; --floor:#FBF9F4;
+    --chip:#EFEADD; --chipline:#D8D0BC;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px;overflow:hidden}
+  button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  button{cursor:pointer}
+
+  /* ---------- gate ---------- */
+  #gate{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+  #gate .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:34px;width:min(380px,92vw);text-align:center;box-shadow:0 20px 50px -30px rgba(0,0,0,.4)}
+  #gate h1{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:26px;margin:0 0 6px}
+  #gate p{color:var(--soft);margin:0 0 20px}
+  #gate .row{display:flex;gap:8px}
+  #gate input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  #gate button{background:var(--terra);color:#fff;border:0;border-radius:6px;padding:0 18px;font-weight:500}
+  #gate .err{color:var(--terra);margin-top:12px;min-height:18px;font-size:13px}
+
+  /* ---------- layout ---------- */
+  #app{display:none;height:100vh;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+  header h1{font-family:"Cormorant Garamond",serif;font-weight:600;font-size:20px;margin:0;white-space:nowrap}
+  header .sp{flex:1}
+  .status{font-size:12px;color:var(--soft);white-space:nowrap}
+  .fixsel{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:13px}
+  .inv{max-height:190px;overflow-y:auto}
+  .inv .row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .inv .row.over{color:var(--terra);font-weight:600}
+  .inv .row .n{font-variant-numeric:tabular-nums}
+  .tbl.fix{background:repeating-linear-gradient(45deg,#ECE7DA 0 6px,#E2DCCB 6px 12px);border-color:#9B9480;cursor:move}
+  .tbl.fix .tl{color:#5E574A}
+  .doorbar{position:absolute;background:var(--terra);border-radius:2px;box-shadow:0 0 0 2px #fff}
+  .doorzone{position:absolute;border:1.5px dashed rgba(168,69,46,.55);background:rgba(168,69,46,.07);border-radius:4px;pointer-events:none}
+  .doorlab{position:absolute;font-size:10px;font-weight:600;color:var(--terra);background:rgba(255,255,255,.92);border:1px solid rgba(168,69,46,.35);border-radius:4px;padding:2px 6px;white-space:nowrap;pointer-events:none;line-height:1.2}
+  .doorlab small{display:block;font-weight:400;color:var(--soft);font-size:9px}
+  .tblwrap.doorwrap{cursor:move}
+  .tblwrap.doorwrap.sel .doorbar{box-shadow:0 0 0 3px rgba(168,69,46,.35)}
+  .vbar{display:flex;align-items:center;gap:6px;padding-right:12px;margin-right:4px;border-right:1px solid var(--line)}
+  .vbar select{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;max-width:220px;font-weight:500}
+  .status.saving{color:var(--gold)} .status.saved{color:var(--olive)} .status.error{color:var(--terra)}
+  .main{flex:1;display:flex;min-height:0}
+
+  /* ---------- sidebar ---------- */
+  .side{width:310px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;transition:width .2s}
+  body.seatmode .side{width:max(340px,25vw)}
+  body.seatmode .chip .nm{white-space:normal;line-height:1.25;font-size:14px}
+  body.seatmode .chip .x{display:none}
+  body.seatmode .chip{padding:8px 10px}
+  .tgroup{border:1px solid var(--line);border-radius:8px;margin:0 0 10px;overflow:hidden;background:#FBFAF6}
+  .tgroup.sel{border-color:var(--terra);box-shadow:0 0 0 2px rgba(168,69,46,.12)}
+  .tgroup.dropok{border-color:var(--olive);background:#F3F7E9}
+  .tgroup .th{display:flex;align-items:baseline;gap:8px;padding:8px 10px;background:#F1EDE2;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+  .tgroup .th b{font-weight:600}
+  .tgroup .th .nick{color:var(--terra);font-style:italic;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tgroup .th .cnt{margin-left:auto;color:var(--soft);font-size:12px;white-space:nowrap}
+  .tgroup .th .cnt.full{color:var(--olive);font-weight:600}
+  .tgroup .th .cnt.over{color:var(--terra);font-weight:700}
+  .tgroup .body{padding:8px 8px 2px}
+  .tgroup .body .chip{margin-bottom:6px}
+  .tgroup .none{font-size:12px;color:var(--soft);padding:6px 10px 10px;font-style:italic}
+  .chip .seatno{font-size:10px;color:var(--soft);background:#fff;border:1px solid var(--chipline);border-radius:4px;padding:0 5px;font-variant-numeric:tabular-nums}
+  .subhead{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);font-weight:600;margin:14px 0 8px}
+  body.seatmode .chip{flex-wrap:wrap}
+  body.seatmode .chip .pty{flex:1 0 100%;order:10;white-space:normal;font-size:11.5px;color:var(--olive);padding-left:1px}
+  .ghead{display:flex;align-items:center;gap:8px;margin:12px 0 6px;padding:6px 9px;border-radius:6px;background:#EEF0E4;border:1px solid #D7DBC7;font-size:12px;font-weight:600;color:var(--olive-deep,#4E5230);cursor:grab;user-select:none}
+  .ghead:first-child{margin-top:0}
+  .ghead .n{margin-left:auto;font-weight:500;color:var(--soft)}
+  .ghead .hint{font-weight:400;color:var(--soft);font-size:11px}
+  .ghead.dragging{opacity:.5}
+  .side h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin:0;font-weight:600}
+  .side .sec{padding:12px 14px;border-bottom:1px solid var(--line)}
+  .side .scroll{flex:1;overflow-y:auto;padding:10px 14px}
+  .grow{display:flex;gap:6px;margin-top:8px}
+  .grow input{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .btn{background:var(--olive);color:#fff;border:0;border-radius:6px;padding:8px 12px;font-weight:500;white-space:nowrap}
+  .btn.sm{padding:6px 10px;font-size:13px}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn.danger{background:var(--terra)}
+  .btn:hover{filter:brightness(1.08)}
+  .searchbox{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .count{font-size:12px;color:var(--soft);font-weight:400}
+
+  .chip{
+    display:flex;align-items:center;gap:6px;background:var(--chip);border:1px solid var(--chipline);
+    border-radius:6px;padding:6px 9px;margin-bottom:6px;cursor:grab;user-select:none;
+  }
+  .chip:active{cursor:grabbing}
+  .chip.dragging{opacity:.4}
+  .chip .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .chip .pty{font-size:11px;color:var(--soft);white-space:nowrap}
+  .chip .x{border:0;background:transparent;color:var(--soft);padding:0 2px;font-size:15px;line-height:1}
+  .chip.plus{border-style:dashed;background:#F6F3EA}
+  .chip .tag{font-size:10px;font-weight:600;color:var(--terra);border:1px solid var(--terra);border-radius:4px;padding:0 4px;white-space:nowrap}
+  .chip .tag.p{color:var(--olive);border-color:var(--olive)}
+  .chip .tag.k{color:#3E6E8E;border-color:#3E6E8E}
+  .chip.child{border-style:dashed;background:#EEF3F6}
+  .chair.child{background:#5D8AA8;border-color:#5D8AA8}
+  .lrow .tagp.k{color:#3E6E8E;border-color:#3E6E8E}
+  .chip .ed{border:0;background:transparent;color:var(--soft);padding:0 2px;font-size:12px}
+  .chip .ed:hover{color:var(--olive)}
+  .p1chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--soft);margin-top:8px}
+  .chair.plus{background:#8A8C63;border-color:#8A8C63;border-style:dashed}
+  .lrow .tagp{font-size:10px;color:var(--terra);border:1px solid var(--terra);border-radius:4px;padding:0 4px;margin-left:6px}
+  .lrow .ed{border:0;background:transparent;color:var(--soft);font-size:12px;cursor:pointer;margin-left:6px}
+  .chip .x:hover{color:var(--terra)}
+  #unassigned.dropok{outline:2px dashed var(--olive);outline-offset:-4px;border-radius:8px}
+
+  /* ---------- floor ---------- */
+  .floorwrap{flex:1;overflow:auto;padding:26px;min-width:0;background:
+    linear-gradient(90deg,rgba(0,0,0,.03) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(rgba(0,0,0,.03) 1px,transparent 1px) 0 0/24px 24px, var(--bg)}
+  #room{position:relative;background:var(--floor);border:2px solid var(--line);border-radius:4px;box-shadow:0 10px 40px -24px rgba(0,0,0,.4)}
+  #room .rlabel{position:absolute;top:-22px;left:0;font-size:12px;color:var(--soft)}
+
+  .tbl{
+    position:absolute;background:#fff;border:2px solid var(--olive);
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+    padding:6px;overflow:hidden;cursor:move;user-select:none;
+    box-shadow:0 4px 14px -8px rgba(0,0,0,.5);
+  }
+  .tbl.round{border-radius:50%}
+  .tbl.rect{border-radius:6px}
+  .tbl.sel{border-color:var(--terra);box-shadow:0 0 0 3px rgba(168,69,46,.18)}
+  .tbl.dropok{background:#F3F7E9;border-color:var(--gold)}
+  .tbl.full{border-style:dashed}
+  .tbl .tl{font-weight:600;font-size:12px;text-align:center;line-height:1.15;pointer-events:none}
+  .tbl .cap{font-size:9px;color:var(--soft);margin-bottom:3px;pointer-events:none;text-align:center}
+  .tbl .nk{font-size:10px;color:var(--terra);font-style:italic;text-align:center;line-height:1.1;pointer-events:none;max-width:100%;overflow:hidden}
+  .scalewrap{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:11px;color:var(--soft)}
+  .scalebar{height:8px;border:1px solid var(--soft);border-top:0}
+  .tbl .cap.over{color:var(--terra);font-weight:600}
+  .tbl .seats{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;overflow:hidden;width:100%}
+  .tbl .seat{
+    background:var(--chip);border:1px solid var(--chipline);border-radius:4px;
+    font-size:10px;line-height:1.2;padding:2px 4px;max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:grab;
+  }
+  .tbl.round .seats{padding:0 8px}
+
+  /* ---------- inspector ---------- */
+  .insp{width:250px;flex:none;background:var(--panel);border-left:1px solid var(--line);padding:14px;overflow-y:auto}
+  .insp .f{margin-bottom:12px}
+  .insp label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);margin-bottom:4px;font-weight:600}
+  .insp input,.insp select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .insp .row2{display:flex;gap:8px}
+  .empty{color:var(--soft);font-size:13px;line-height:1.5}
+  .hint{font-size:11px;color:var(--soft);margin-top:8px;line-height:1.45}
+  /* ---------- in-page dialogs & toasts ---------- */
+  .mod-ov{position:fixed;inset:0;z-index:1000;background:rgba(30,26,18,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadein .12s}
+  .mod{background:#fff;border-radius:12px;width:min(520px,100%);max-height:90vh;overflow:auto;box-shadow:0 30px 80px -30px rgba(0,0,0,.5);padding:22px 22px 18px;animation:pop .14s}
+  .mod.wide{width:min(720px,100%)}
+  .mod h3{margin:0 0 6px;font-size:18px;font-weight:600}
+  .mod .mod-body{margin:0 0 14px;color:var(--soft);font-size:14px;line-height:1.5;white-space:pre-wrap}
+  .mod-form{display:flex;flex-wrap:wrap;gap:12px}
+  .mod-f{display:flex;flex-direction:column;gap:5px;flex:1 0 100%;font-size:12px;color:var(--soft);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .mod-f.half{flex:1 0 calc(50% - 6px)}
+  .mod-f input,.mod-f select,.mod-f textarea{font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink);padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;width:100%}
+  .mod-f input:focus,.mod-f select:focus,.mod-f textarea:focus{outline:2px solid #B8C4A0;outline-offset:1px;border-color:#9AA06A}
+  .mod-f textarea{min-height:120px;resize:vertical;font-family:inherit}
+  .mod-acts{display:flex;justify-content:flex-end;gap:8px;flex:1 0 100%;margin-top:8px}
+  .mod .btn.danger{background:var(--terra);color:#fff}
+  .mod-list{flex:1 0 100%;display:flex;flex-direction:column;gap:6px;max-height:50vh;overflow:auto}
+  .mod-row{display:flex;align-items:center;gap:6px}
+  .mod-row input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:7px}
+  .mod-row .n{font-size:12px;color:var(--soft);white-space:nowrap;min-width:64px;text-align:right}
+  .mod-row .ib{flex:none}
+  .toasts{position:fixed;right:18px;bottom:18px;z-index:1100;display:flex;flex-direction:column;gap:8px;max-width:380px}
+  .toast{background:#2E2A22;color:#fff;padding:11px 14px;border-radius:9px;font-size:13px;line-height:1.4;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);animation:pop .14s;white-space:pre-wrap}
+  .toast.ok{background:#3D7A55} .toast.warn{background:#7B5A17} .toast.err{background:var(--terra)}
+  @keyframes fadein{from{opacity:0}to{opacity:1}} @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+  @media(max-width:1100px){.insp{display:none}}
+
+  /* seats ring */
+  .tblwrap{position:absolute;user-select:none}
+  .tblwrap .tbl{position:absolute}
+  .tblwrap.sel .tbl{border-color:var(--terra);box-shadow:0 0 0 3px rgba(168,69,46,.18)}
+  .tbl .cnt{font-size:10px;color:var(--soft);pointer-events:none}
+  .tbl .cnt.over{color:var(--terra);font-weight:700}
+  .chair{
+    position:absolute;border-radius:50%;background:#fff;border:1.5px solid #B7B09C;
+    display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--soft);
+    cursor:copy;box-sizing:border-box;line-height:1;
+  }
+  .chair.taken{background:var(--olive);border-color:var(--olive);color:#fff;cursor:grab}
+  .chair.taken:hover{background:#7C8150}
+  .chair.dropok{border-color:var(--terra);box-shadow:0 0 0 2px rgba(168,69,46,.25)}
+  .chair.swap{background:#F3DCD4;border-color:var(--terra)}
+
+  /* list view */
+  .listview{flex:1;overflow:auto;padding:22px 28px;min-width:0;background:var(--bg)}
+  .ltool{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .ltool .sp{flex:1}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:transparent;padding:7px 12px;font-size:13px;color:var(--soft)}
+  .seg button.on{background:var(--olive);color:#fff}
+  .tcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:14px;overflow:hidden;break-inside:avoid}
+  .tcard header{display:flex;align-items:baseline;gap:10px;padding:10px 14px;background:#F7F4EC;border-bottom:1px solid var(--line)}
+  .tcard header h3{margin:0;font-size:15px;font-weight:600}
+  .tcard header .nick{color:var(--terra);font-style:italic;font-size:13px}
+  .tcard header .meta{margin-left:auto;font-size:12px;color:var(--soft)}
+  .tcard header .meta.over{color:var(--terra);font-weight:600}
+  .lrow{display:grid;grid-template-columns:44px 1fr 150px 1fr 150px;gap:10px;align-items:center;padding:7px 14px;border-bottom:1px dashed var(--line);font-size:13px}
+  .lrow:last-child{border-bottom:0}
+  .lrow .seatno{color:var(--soft);font-variant-numeric:tabular-nums}
+  .lrow .nm{font-weight:500}
+  .lrow .nm.open{color:#B0AA9A;font-weight:400;font-style:italic}
+  .lrow .pty,.lrow .nts{color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lrow select{padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:#fff;font-size:12px;width:100%}
+  .lhead{display:grid;grid-template-columns:44px 1fr 150px 1fr 150px;gap:10px;padding:6px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft)}
+  .az .lrow{grid-template-columns:1fr 150px 180px 1fr 150px}
+  .az .lhead{grid-template-columns:1fr 150px 180px 1fr 150px}
+  @media print{
+    header,.side,.insp,.floorwrap,.ltool,.status{display:none!important}
+    body{overflow:visible;background:#fff}
+    #app,.main{display:block!important;height:auto}
+    .listview{display:block!important;padding:0;overflow:visible}
+    .lrow select{display:none}
+    .tcard{border-color:#999}
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="card">
+    <h1>Seating Planner</h1>
+    <p>Private. Enter the planner password.</p>
+    <div class="row">
+      <input id="gpw" type="password" placeholder="Password" autocomplete="current-password">
+      <button id="ggo">Open</button>
+    </div>
+    <div class="err" id="gerr"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>Seating Planner</h1>
+    <span class="vbar">
+      <select id="planSel" title="Switch version"></select>
+      <button class="btn sm ghost" id="newPlan" title="New empty version">New</button>
+      <button class="btn sm ghost" id="dupPlan" title="Copy this version">Duplicate</button>
+      <button class="btn sm ghost" id="renPlan" title="Rename this version">Rename</button>
+      <button class="btn sm ghost" id="delPlan" title="Delete this version">Delete</button>
+    </span>
+    <button class="btn sm" id="addRound">+ Round table</button>
+    <button class="btn sm" id="addRect">+ Long table</button>
+    <select class="fixsel" id="addFixture" title="Add a fixed feature"><option value="">+ Fixture\u2026</option></select>
+    <button class="btn sm ghost" id="autoArrange">Auto-arrange</button>
+    <span class="sp"></span>
+    <label class="count">Zoom <input id="zoom" type="range" min="6" max="30" value="13" style="vertical-align:middle"></label>
+    <button class="btn sm ghost" id="fitBtn" title="Fit the whole room in view">Fit</button>
+    <button class="btn sm ghost" id="undoBtn" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+    <div class="seg modes"><button class="on" data-mode="design">Design room</button><button data-mode="seat">Seat guests</button><button data-mode="list">Who's where</button></div>
+    <button class="btn sm ghost" id="printBtn">Print</button>
+    <span class="status" id="status">Loading…</span>
+  </header>
+
+  <div class="main">
+    <aside class="side" id="side">
+      <div class="sec" id="addSec">
+        <h2>Add guest</h2>
+        <div class="grow">
+          <input id="gFirst" placeholder="First">
+          <input id="gLast" placeholder="Last">
+        </div>
+        <div class="grow">
+          <input id="gParty" placeholder="Group (optional), e.g. Ennis family">
+          <button class="btn" id="addGuest">Add</button>
+        </div>
+        <label class="p1chk"><input type="checkbox" id="gPlus"> Bringing a plus-one (adds a second seat)</label>
+        <div class="grow"><input id="gKids" placeholder="Children, comma separated (optional)"></div>
+        <div class="grow">
+          <button class="btn sm ghost" id="bulkBtn" style="flex:1">Paste list…</button>
+          <button class="btn sm ghost" id="importBtn" style="flex:1">From RSVPs</button>
+        </div>
+        <div class="grow">
+          <button class="btn sm ghost" id="csvBtn" style="flex:1">Upload CSV</button>
+          <button class="btn sm ghost" id="csvTemplate" style="flex:1">CSV template</button>
+          <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+        </div>
+      </div>
+      <div class="sec">
+        <h2>Unseated <span class="count" id="unCount"></span></h2>
+        <div class="grow"><input class="searchbox" id="search" placeholder="Search names or groups…"></div>
+        <div class="grow" style="align-items:center">
+          <select id="groupSel" class="searchbox" style="flex:1"><option value="">All groups</option></select>
+          <label class="p1chk" style="margin:0;white-space:nowrap"><input type="checkbox" id="groupBy" checked> Cluster by group</label>
+        </div>
+      </div>
+      <div class="scroll" id="listscroll">
+        <div id="unassigned"></div>
+        <div id="bytable" hidden></div>
+      </div>
+      <div class="sec inv" id="invSec">
+        <h2>Table inventory <span class="count">used / owned</span></h2>
+        <div id="inventory"></div>
+      </div>
+    </aside>
+
+    <div class="floorwrap" id="floorwrap">
+      <div id="room"><div class="rlabel" id="rlabel"></div></div>
+      <div class="scalewrap"><div class="scalebar" id="scalebar"></div><span>10 ft</span></div>
+    </div>
+
+    <div class="listview" id="listview" hidden>
+      <div class="ltool">
+        <input class="searchbox" id="lsearch" placeholder="Find a guest or table…" style="max-width:280px">
+        <div class="seg"><button class="on" data-mode="table">By table</button><button data-mode="az">A to Z</button></div>
+        <span class="sp"></span>
+        <button class="btn sm ghost" id="exportCsv">Export CSV</button>
+      </div>
+      <div id="lbody"></div>
+    </div>
+
+    <aside class="insp" id="insp"></aside>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- in-page dialogs & toasts (replaces prompt/confirm/alert) ---------- */
+  var Modal=(function(){
+    var root=null, onEsc=null;
+    function close(){ if(root){ root.remove(); root=null; document.removeEventListener('keydown',esc); } }
+    function esc(e){ if(e.key==='Escape'){ close(); if(onEsc) onEsc(); } }
+    function open(o){
+      close(); onEsc=o.onCancel||null;
+      root=document.createElement('div'); root.className='mod-ov';
+      var box=document.createElement('div'); box.className='mod'+(o.wide?' wide':'');
+      var h=document.createElement('h3'); h.textContent=o.title||''; box.appendChild(h);
+      if(o.body){ var p=document.createElement('p'); p.className='mod-body'; p.textContent=o.body; box.appendChild(p); }
+      var form=document.createElement('form'); form.className='mod-form'; form.noValidate=true;
+      var inputs={};
+      (o.fields||[]).forEach(function(f){
+        var w=document.createElement('label'); w.className='mod-f'+(f.half?' half':'');
+        var l=document.createElement('span'); l.textContent=f.label; w.appendChild(l);
+        var el;
+        if(f.type==='select'){ el=document.createElement('select'); (f.options||[]).forEach(function(op){var x=document.createElement('option');x.value=op.value;x.textContent=op.label;if(op.value===f.value)x.selected=true;el.appendChild(x);}); }
+        else if(f.type==='textarea'){ el=document.createElement('textarea'); el.value=f.value||''; }
+        else { el=document.createElement('input'); el.type=f.type||'text'; el.value=(f.value===null||f.value===undefined)?'':f.value; if(f.inputMode) el.inputMode=f.inputMode; }
+        if(f.placeholder) el.placeholder=f.placeholder;
+        inputs[f.key]=el; w.appendChild(el); form.appendChild(w);
+      });
+      if(o.custom){ form.appendChild(o.custom(inputs,box)); }
+      var acts=document.createElement('div'); acts.className='mod-acts';
+      if(o.cancelText!==false){ var c=document.createElement('button'); c.type='button'; c.className='btn ghost'; c.textContent=o.cancelText||'Cancel'; c.addEventListener('click',function(){ close(); if(o.onCancel) o.onCancel(); }); acts.appendChild(c); }
+      var ok=document.createElement('button'); ok.type='submit'; ok.className='btn'+(o.danger?' danger':''); ok.textContent=o.submitText||'Save'; acts.appendChild(ok);
+      form.appendChild(acts);
+      form.addEventListener('submit',function(e){ e.preventDefault(); var v={}; Object.keys(inputs).forEach(function(k){v[k]=inputs[k].value;}); var r=o.onSubmit?o.onSubmit(v,inputs):true; if(r!==false) close(); });
+      box.appendChild(form); root.appendChild(box); document.body.appendChild(root);
+      root.addEventListener('mousedown',function(e){ if(e.target===root){ close(); if(o.onCancel) o.onCancel(); } });
+      document.addEventListener('keydown',esc);
+      var first=form.querySelector('input:not([type=date]),select,textarea'); if(first){ first.focus(); if(first.select&&first.tagName==='INPUT') first.select(); }
+      return {close:close,inputs:inputs,box:box,form:form};
+    }
+    function confirm(o){ return new Promise(function(res){ open({title:o.title,body:o.body,submitText:o.confirmText||'Confirm',danger:o.danger!==false,onSubmit:function(){res(true);},onCancel:function(){res(false);}}); }); }
+    function info(title,body){ open({title:title,body:body,submitText:'Close',cancelText:false}); }
+    function ask(o){ return new Promise(function(res){ open({title:o.title,body:o.body,fields:[{key:'v',label:o.label||'',type:o.type||'text',value:o.value,placeholder:o.placeholder}],submitText:o.submitText||'Save',onSubmit:function(v){ if(o.required&&!String(v.v).trim()) return false; res(v.v); },onCancel:function(){res(null);}}); }); }
+    return {open:open,confirm:confirm,info:info,ask:ask,close:close};
+  })();
+  var toastBox=document.createElement('div'); toastBox.className='toasts'; document.body.appendChild(toastBox);
+  function toast(msg,kind,ms){ var t=document.createElement('div'); t.className='toast '+(kind||''); t.textContent=msg; toastBox.appendChild(t); setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){t.remove();},320); },ms||4200); }
+
+  var KEY_STORE='planner_key';
+  var key=null, state=null, scale=13, selected=null, saveTimer=null, filter='';
+
+  var $=function(id){return document.getElementById(id);};
+  function uid(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);}
+  function esc(v){return (v==null?'':String(v));}
+
+  /* ---------------- gate ---------------- */
+  function openGate(msg){
+    $('gate').style.display='flex'; $('app').style.display='none';
+    if(msg) $('gerr').textContent=msg;
+    $('gpw').focus();
+  }
+  function tryKey(k){
+    return fetch('/api/seating?p='+encodeURIComponent(k)).then(function(r){
+      if(r.status===401) throw new Error('bad');
+      if(!r.ok) throw new Error('server');
+      return r.json();
+    });
+  }
+  $('ggo').addEventListener('click',doLogin);
+  $('gpw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+  function doLogin(){
+    var k=$('gpw').value.trim();
+    if(!k) return;
+    $('gerr').textContent='Checking…';
+    tryKey(k).then(function(data){
+      key=k; try{localStorage.setItem(KEY_STORE,k);}catch(e){}
+      boot(data);
+    }).catch(function(e){
+      $('gerr').textContent = e.message==='bad' ? 'Wrong password.' : 'Could not connect.';
+    });
+  }
+
+  /* ---------------- boot ---------------- */
+  var planId=null, plans=[], rev=null;
+
+  function boot(data){
+    plans=data.plans||[];
+    var st=data.state;
+    if(!st){ setStatus('error','No version found'); return; }
+    planId=st.planId; rev=st.rev||null;
+    state={room:st.room,tables:st.tables||[],guests:st.guests||[]};
+    undoStack=[]; lastSnap=JSON.stringify(state);
+    window.__rsvpGuests=data.rsvpGuests||[];
+    $('gate').style.display='none'; $('app').style.display='flex';
+    setStatus('saved','All changes saved');
+    selected=null;
+    renderPlans(); renderAll();
+  }
+
+  function renderPlans(){
+    var sel=$('planSel'); sel.innerHTML='';
+    plans.forEach(function(p){
+      var o=document.createElement('option');
+      o.value=p.id;
+      o.textContent=p.name+'  ('+p.seated+'/'+p.guests+' seated, '+p.tables+' tables)';
+      if(p.id===planId) o.selected=true;
+      sel.appendChild(o);
+    });
+  }
+
+  function planApi(action,payload){
+    var body=Object.assign({action:action,password:key},payload||{});
+    return fetch('/api/seating',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Planner-Key':key},
+      body:JSON.stringify(body)
+    }).then(function(r){
+      return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'failed'); return j; });
+    });
+  }
+
+  function loadPlan(id){
+    setStatus('saving','Loading…');
+    fetch('/api/seating?p='+encodeURIComponent(key)+'&plan='+encodeURIComponent(id))
+      .then(function(r){return r.json();})
+      .then(function(d){ boot(d); })
+      .catch(function(){ setStatus('error','Could not load that version'); });
+  }
+
+  function flushThen(fn){
+    clearTimeout(saveTimer);
+    if(state && planId){ save().then(fn).catch(fn); } else { fn(); }
+  }
+
+  $('planSel').addEventListener('change',function(){
+    var id=this.value;
+    flushThen(function(){ loadPlan(id); });
+  });
+
+  $('newPlan').addEventListener('click',function(){
+    Modal.ask({title:'New version',label:'Version name',value:'Version '+(plans.length+1),required:true,submitText:'Create'}).then(function(nm){
+      if(!nm) return;
+      flushThen(function(){
+        planApi('createPlan',{name:nm.trim()}).then(function(r){ plans=r.plans; loadPlan(r.planId); })
+          .catch(function(e){ toast('Could not create version: '+e.message,'err'); });
+      });
+    });
+  });
+
+  $('dupPlan').addEventListener('click',function(){
+    var cur=plans.filter(function(p){return p.id===planId;})[0];
+    Modal.ask({title:'Duplicate version',body:'Copies the room, tables, guests and every seat into a new independent version.',label:'Name for the copy',value:(cur?cur.name:'Version')+' copy',required:true,submitText:'Duplicate'}).then(function(nm){
+      if(!nm) return;
+      flushThen(function(){
+        planApi('duplicatePlan',{planId:planId,name:nm.trim()}).then(function(r){ plans=r.plans; loadPlan(r.planId); })
+          .catch(function(e){ toast('Could not duplicate: '+e.message,'err'); });
+      });
+    });
+  });
+
+  $('renPlan').addEventListener('click',function(){
+    var cur=plans.filter(function(p){return p.id===planId;})[0];
+    Modal.ask({title:'Rename version',label:'Version name',value:cur?cur.name:'',required:true,submitText:'Rename'}).then(function(nm){
+      if(!nm) return;
+      planApi('renamePlan',{planId:planId,name:nm.trim()}).then(function(r){ plans=r.plans; renderPlans(); })
+        .catch(function(e){ toast('Could not rename: '+e.message,'err'); });
+    });
+  });
+
+  $('delPlan').addEventListener('click',function(){
+    var cur=plans.filter(function(p){return p.id===planId;})[0];
+    if(!cur) return;
+    Modal.confirm({title:'Delete version',body:'Delete "'+cur.name+'"? This removes its tables and seating. This cannot be undone.',confirmText:'Delete'}).then(function(ok){
+      if(!ok) return;
+      clearTimeout(saveTimer);
+      planApi('deletePlan',{planId:planId}).then(function(r){
+        plans=r.plans;
+        loadPlan(plans[0] ? plans[0].id : '');
+      }).catch(function(e){ toast('Could not delete: '+e.message,'err'); });
+    });
+  });
+
+  var stored=null; try{stored=localStorage.getItem(KEY_STORE);}catch(e){}
+  if(stored){
+    tryKey(stored).then(function(d){key=stored;boot(d);}).catch(function(){openGate('');});
+  } else { openGate(''); }
+
+  /* ---------------- saving ---------------- */
+  function setStatus(cls,txt){var s=$('status');s.className='status '+cls;s.textContent=txt;}
+  var undoStack=[], lastSnap=null;
+  function queueSave(){
+    // snapshot the state as it was before this change, for undo
+    var now=JSON.stringify(state);
+    if(lastSnap&&lastSnap!==now){ undoStack.push(lastSnap); if(undoStack.length>60) undoStack.shift(); }
+    lastSnap=now;
+    setStatus('saving','Saving…');
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(save,700);
+  }
+  function undo(){
+    if(!undoStack.length){ setStatus('saved','Nothing to undo'); return; }
+    var snap=undoStack.pop();
+    state=JSON.parse(snap); lastSnap=snap;
+    selected=null; renderAll();
+    setStatus('saving','Undone, saving…'); clearTimeout(saveTimer); saveTimer=setTimeout(save,500);
+  }
+  document.addEventListener('keydown',function(e){
+    var tag=(e.target&&e.target.tagName||'').toLowerCase();
+    if(tag==='input'||tag==='textarea'||tag==='select') return;
+    if((e.metaKey||e.ctrlKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+  });
+  // Saves are serialized: only one request in flight at a time. Changes made
+  // while a save is running set `dirty` and are sent as one follow-up save
+  // with the fresh revision, so a fast series of edits never races itself.
+  var inflight=null, dirty=false;
+  function save(){
+    if(!planId||!state) return Promise.resolve();
+    if(inflight){ dirty=true; return inflight; }
+    dirty=false;
+    var myPlan=planId, conflicted=false;
+    var payload=JSON.stringify({action:'save',password:key,planId:planId,state:state,rev:rev});
+    inflight=fetch('/api/seating',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Planner-Key':key},
+      body:payload
+    }).then(function(r){
+      if(r.status===409){
+        conflicted=true; dirty=false;
+        setStatus('error','Changed elsewhere');
+        toast('This version was changed from another window or device. Reloaded to the latest; your very last change was not saved, so re-apply it.','warn',7000);
+        loadPlan(myPlan);
+        return null;
+      }
+      if(!r.ok) throw new Error('save');
+      return r.json();
+    }).then(function(j){
+      if(!j) return;
+      if(planId===myPlan && j.rev) rev=j.rev;
+      if(j.plans){ plans=j.plans; renderPlans(); }
+      setStatus('saved','All changes saved');
+    }).catch(function(){
+      setStatus('error','Not saved. Retrying\u2026');
+      setTimeout(function(){ save(); },4000);
+    }).then(function(){
+      inflight=null;
+      if(dirty && !conflicted) return save();
+    });
+    return inflight;
+  }
+
+  /* ---------------- render ---------------- */
+  function renderAll(){ renderRoom(); renderSidebar(); renderByTable(); renderInventory(); renderInspector(); if(listMode) renderList(); }
+
+  function guestsAt(tid){ return state.guests.filter(function(g){return g.tableId===tid;}); }
+  function ft(n){ return (Math.round(n*10)/10)+"'"; }
+  function dimText(t){ return t.shape==='round' ? ft(t.w)+' round' : ft(t.w)+' \u00d7 '+ft(t.h); }
+
+  function invKey(t){ return t.shape+'|'+t.w+'|'+t.h; }
+  function renderInventory(){
+    var box=$('inventory'); box.innerHTML='';
+    var used={};
+    state.tables.forEach(function(t){ if(isSeating(t)){ var k=invKey(t); used[k]=(used[k]||0)+1; } });
+    PRESETS.forEach(function(p){
+      if(p.count==null) return;
+      var k=p.shape+'|'+p.w+'|'+p.h, u=used[k]||0;
+      var r=document.createElement('div'); r.className='row'+(u>p.count?' over':'');
+      var a=document.createElement('span'); a.textContent=p.k.split(' \u00b7 ')[0];
+      var b=document.createElement('span'); b.className='n'; b.textContent=u+' / '+p.count;
+      r.appendChild(a); r.appendChild(b); box.appendChild(r);
+    });
+    function line(label,val,strong,warn){
+      var r=document.createElement('div'); r.className='row'+(warn?' over':'');
+      var a=document.createElement('span'); a.textContent=label; if(strong) a.style.fontWeight='600';
+      var b=document.createElement('span'); b.className='n'; b.textContent=String(val);
+      r.appendChild(a); r.appendChild(b); box.appendChild(r);
+    }
+    var all=state.guests, kidsN=all.filter(function(g){return g.isChild;}).length;
+    var unnamed=all.filter(function(g){return g.plusOneOf&&!g.isChild&&isAutoName(g);}).length;
+    var seatedG=all.filter(function(g){return g.tableId;}).length;
+    var sp=document.createElement('div'); sp.style.height='8px'; box.appendChild(sp);
+    line('Headcount (everyone)',all.length,true);
+    line('  Adults',all.length-kidsN);
+    line('  Children (venue has 2 highchairs)',kidsN,false,kidsN>2);
+    line('  Unnamed plus-ones still to confirm',unnamed,false,unnamed>0);
+    line('  Seated / unseated',seatedG+' / '+(all.length-seatedG));
+    var totalSeats=state.tables.reduce(function(s,t){return s+(isSeating(t)?t.seats:0);},0);
+    var r=document.createElement('div'); r.className='row';
+    var a=document.createElement('span'); a.textContent='Total seats placed'; a.style.fontWeight='600';
+    var b=document.createElement('span'); b.className='n'; b.textContent=String(totalSeats);
+    r.appendChild(a); r.appendChild(b); box.appendChild(r);
+  }
+
+  // The Canfield's actual furniture inventory (from the Welcome Package).
+  // count = how many the venue owns. Rectangles are 30in (2.5 ft) deep.
+  var PRESETS=[
+    {k:'72" round (6 ft) \u00b7 seats 10-12', shape:'round', w:6,   h:6,   seats:10, count:16},
+    {k:'60" round (5 ft) \u00b7 seats 8-10',  shape:'round', w:5,   h:5,   seats:8,  count:31},
+    {k:'48" round (4 ft) \u00b7 seats 5-6',   shape:'round', w:4,   h:4,   seats:5,  count:1},
+    {k:'8 ft rectangle \u00b7 seats 8-10',    shape:'rect',  w:8,   h:2.5, seats:8,  count:12},
+    {k:'6 ft rectangle \u00b7 seats 6-8',     shape:'rect',  w:6,   h:2.5, seats:6,  count:9},
+    {k:'Half round 60" x 30"',              shape:'rect',  w:5,   h:2.5, seats:3,  count:2},
+    {k:'Cocktail high-top 36"',             shape:'round', w:3,   h:3,   seats:0,  count:10},
+    {k:'Custom 5 \u00d7 10 ft',                shape:'rect',  w:10,  h:5,   seats:12, count:null}
+  ];
+
+  // Fixed features you plan around. Not seating; guests cannot be dropped on them.
+  var FIXTURES=[
+    {k:'Bandstand (32\'8" \u00d7 12\'3")', w:12.25, h:32.67},
+    {k:'Dance floor 20 \u00d7 20',       w:20,    h:20},
+    {k:'Dance floor 24 \u00d7 24',       w:24,    h:24},
+    {k:'Column',                      w:1.5,   h:1.5},
+    {k:'Bar',                         w:20,    h:5},
+    {k:'Coat closet',                 w:14,    h:12},
+    {k:'Gift / card table',           w:6,     h:2.5},
+    {k:'Cake / dessert table',        w:6,     h:2.5},
+    {k:'DJ / band gear',              w:8,     h:4},
+    {k:'Antique roulette (do not move)', w:6, h:4},
+    {k:'Door, single (3 ft)',      w:3,  h:0.5, door:true},
+    {k:'Door, double (6 ft)',      w:6,  h:0.5, door:true},
+    {k:'Opening / pocket doors (8 ft)', w:8, h:0.5, door:true}
+  ];
+
+  // Real room dimensions from the Canfield floor plan.
+  var ROOMS=[
+    {k:'Canfield Ballroom  92\'10" \u00d7 58\'4"',        name:'Canfield Ballroom',    w:92.83, h:58.33},
+    {k:'Parlor Room  66\'0" \u00d7 37\'8"',              name:'Canfield Parlor Room', w:66,    h:37.67},
+    {k:'Bar Room  66\'0" \u00d7 20\'0" (est. length)',   name:'Canfield Bar Room',    w:66,    h:20},
+    {k:'Parlor + Bar combined',                        name:'Parlor Room and Bar',  w:66,    h:57.67}
+  ];
+  function fullName(g){ return (g.firstName+' '+g.lastName).trim(); }
+
+  var groupFilter='';
+  function refreshGroupSel(){
+    var sel=$('groupSel'); var cur=sel.value;
+    var names={}; state.guests.forEach(function(g){names[groupName(g)]=(names[groupName(g)]||0)+1;});
+    var keys=Object.keys(names).sort(natCmp);
+    sel.innerHTML='';
+    var o0=document.createElement('option'); o0.value=''; o0.textContent='All groups ('+state.guests.length+')'; sel.appendChild(o0);
+    keys.forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k+' ('+names[k]+')'; sel.appendChild(o); });
+    sel.value=keys.indexOf(cur)>-1?cur:''; groupFilter=sel.value;
+  }
+  function renderSidebar(){
+    refreshGroupSel();
+    var wrap=$('unassigned'); wrap.innerHTML='';
+    var list=state.guests.filter(function(g){return !g.tableId;});
+    var f=filter.toLowerCase();
+    if(groupFilter) list=list.filter(function(g){return groupName(g)===groupFilter;});
+    if(f) list=list.filter(function(g){return (fullName(g)+' '+groupName(g)).toLowerCase().indexOf(f)>-1;});
+    list.sort(function(a,b){
+      var ka=a.plusOneOf?(byId(a.plusOneOf)||a):a, kb=b.plusOneOf?(byId(b.plusOneOf)||b):b;
+      var c=(ka.lastName+ka.firstName).localeCompare(kb.lastName+kb.firstName);
+      if(c!==0) return c;
+      return (a.plusOneOf?1:0)-(b.plusOneOf?1:0);
+    });
+    $('unCount').textContent='('+state.guests.filter(function(g){return !g.tableId;}).length+' of '+state.guests.length+')';
+    if($('groupBy').checked && list.length){
+      var groups={}; list.forEach(function(g){ (groups[groupName(g)]=groups[groupName(g)]||[]).push(g); });
+      Object.keys(groups).sort(natCmp).forEach(function(name){
+        var gs=groups[name];
+        var h=document.createElement('div'); h.className='ghead'; h.draggable=true;
+        var nm=document.createElement('span'); nm.textContent=name; h.appendChild(nm);
+        var hint=document.createElement('span'); hint.className='hint'; hint.textContent='drag to seat all'; h.appendChild(hint);
+        var n=document.createElement('span'); n.className='n'; n.textContent=gs.length+(gs.length===1?' seat':' seats'); h.appendChild(n);
+        h.title='Drag this header onto a table to seat everyone in '+name+' who is still unseated.';
+        h.addEventListener('dragstart',function(ev){ ev.dataTransfer.setData('text/plain','group:'+name); ev.dataTransfer.effectAllowed='move'; h.classList.add('dragging'); });
+        h.addEventListener('dragend',function(){ h.classList.remove('dragging'); });
+        wrap.appendChild(h);
+        gs.forEach(function(g){ wrap.appendChild(chipEl(g)); });
+      });
+    } else {
+      list.forEach(function(g){ wrap.appendChild(chipEl(g)); });
+    }
+    if(!list.length){
+      var p=document.createElement('div'); p.className='empty';
+      p.textContent = state.guests.length ? 'Everyone is seated.' : 'No guests yet. Add them on the left, or pull them in from RSVPs.';
+      wrap.appendChild(p);
+    }
+  }
+
+  function chipEl(g){
+    var d=document.createElement('div'); d.className='chip'+(g.plusOneOf?(g.isChild?' child':' plus'):''); d.draggable=true; d.dataset.gid=g.id;
+    var n=document.createElement('span'); n.className='nm'; n.textContent=fullName(g); d.appendChild(n);
+    if(g.plusOneOf){
+      var pt=document.createElement('span'); pt.className='tag'+(g.isChild?' k':''); pt.textContent=g.isChild?'kid':'+1';
+      var pr=byId(g.plusOneOf); pt.title=(g.isChild?'Child of ':'Plus-one of ')+(pr?fullName(pr):'?'); d.appendChild(pt);
+    } else {
+      var k=adultPlusOnes(g).length, kids=childrenOf(g).length;
+      var tg=document.createElement('button'); tg.className='tag'+(k?' p':''); tg.textContent=k?'+'+k:'+1?'; tg.title=k?'Has '+k+' plus-one seat'+(k===1?'':'s')+'. Click to remove.':'Click to add a plus-one seat';
+      tg.style.cursor='pointer'; tg.style.background='transparent';
+      tg.addEventListener('click',function(ev){ev.stopPropagation();togglePlusOne(g);});
+      d.appendChild(tg);
+      var kb=document.createElement('button'); kb.className='tag k'; kb.textContent=kids?kids+' kid'+(kids===1?'':'s'):'+kid'; kb.title='Add a child'; kb.style.cursor='pointer'; kb.style.background='transparent';
+      kb.addEventListener('click',function(ev){ev.stopPropagation(); Modal.ask({title:'Add a child for '+fullName(g),label:"Child's name",placeholder:'First, or first and last',required:true,submitText:'Add'}).then(function(nm){ if(nm&&addChild(g,nm)){ var t=g.tableId?state.tables.filter(function(o){return o.id===g.tableId;})[0]:null; if(t) seatWithPlusOnes(g,t,g.seatIndex); renderAll(); queueSave(); } });});
+      d.appendChild(kb);
+    }
+    if(g.party){ var p=document.createElement('span'); p.className='pty'; p.textContent=g.party; d.appendChild(p); }
+    var ed=document.createElement('button'); ed.className='ed'; ed.textContent='\u270e'; ed.title='Edit name / group / notes';
+    ed.addEventListener('click',function(ev){ev.stopPropagation();editGuest(g);});
+    d.appendChild(ed);
+    var x=document.createElement('button'); x.className='x'; x.textContent='\u00d7'; x.title=plusOnesOf(g).length?'Remove guest and their plus-one(s)':'Remove guest';
+    x.addEventListener('click',function(ev){
+      ev.stopPropagation();
+      var k=plusOnesOf(g).length;
+      Modal.confirm({title:'Remove guest',body:'Remove '+fullName(g)+(k?' and their '+k+' linked seat'+(k===1?'':'s')+' (plus-ones / kids)':'')+' from the list?',confirmText:'Remove'}).then(function(ok){ if(!ok) return; removeGuest(g); renderAll(); queueSave(); });
+    });
+    d.appendChild(x);
+    d.addEventListener('dragstart',function(ev){
+      ev.dataTransfer.setData('text/plain',g.id);
+      ev.dataTransfer.effectAllowed='move';
+      d.classList.add('dragging');
+    });
+    d.addEventListener('dragend',function(){d.classList.remove('dragging');});
+    return d;
+  }
+
+  function renderRoom(){
+    var room=$('room');
+    room.style.width=(state.room.widthFt*scale)+'px';
+    room.style.height=(state.room.heightFt*scale)+'px';
+    var g5=(scale*5)+'px';
+    room.style.backgroundImage=
+      'linear-gradient(90deg,rgba(108,112,67,.16) 1px,transparent 1px),'+
+      'linear-gradient(rgba(108,112,67,.16) 1px,transparent 1px),'+
+      'linear-gradient(90deg,rgba(108,112,67,.06) 1px,transparent 1px),'+
+      'linear-gradient(rgba(108,112,67,.06) 1px,transparent 1px)';
+    room.style.backgroundSize=g5+' '+g5+','+g5+' '+g5+','+scale+'px '+scale+'px,'+scale+'px '+scale+'px';
+    $('scalebar').style.width=(scale*10)+'px';
+    Array.prototype.slice.call(room.querySelectorAll('.tblwrap')).forEach(function(n){n.remove();});
+    $('rlabel').textContent=state.room.name+' \u00b7 '+state.room.widthFt+' \u00d7 '+state.room.heightFt+' ft';
+    state.tables.forEach(function(t){ room.appendChild(tableEl(t)); });
+  }
+
+  var CHAIR=1.5;           // chair footprint in ft (16-18in chiavari/banquet)
+  var RING=1.15;           // chair center sits this far outside the table edge
+  var PAD=CHAIR/2+RING+0.2; // wrapper padding so chairs fit
+
+  // Seat centers in table-local feet (0,0 = table top-left).
+  function seatPositions(t){
+    var n=t.seats||0, out=[];
+    if(t.shape==='fixture'||n<=0) return out;
+    if(t.shape==='round'){
+      var cx=t.w/2, cy=t.h/2, r=t.w/2+RING;
+      for(var i=0;i<n;i++){ var a=-Math.PI/2+i*2*Math.PI/n; out.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)}); }
+      return out;
+    }
+    // rectangle: seats run along the LONG sides. 1-2 seats (head/sweetheart
+    // table) sit together on one long side. `flip` swaps which side is used.
+    var a=n<=2?n:Math.ceil(n/2), b=n-a;
+    var horizontal=t.w>=t.h;
+    var sideA=[], sideB=[];
+    if(horizontal){
+      for(var i=0;i<a;i++) sideA.push({x:(i+0.5)*t.w/a, y:-RING});          // top
+      for(var j=0;j<b;j++) sideB.push({x:(j+0.5)*t.w/b, y:t.h+RING});       // bottom
+    } else {
+      for(var i2=0;i2<a;i2++) sideA.push({x:-RING, y:(i2+0.5)*t.h/a});      // left
+      for(var j2=0;j2<b;j2++) sideB.push({x:t.w+RING, y:(j2+0.5)*t.h/b});   // right
+    }
+    if(t.flip){ // mirror to the opposite long side
+      var mir=function(pt){ return horizontal?{x:pt.x,y:t.h-pt.y}:{x:t.w-pt.x,y:pt.y}; };
+      sideA=sideA.map(mir); sideB=sideB.map(mir);
+    }
+    return sideA.concat(sideB);
+  }
+
+  // Make sure every guest at a table holds a unique seat in range; extras spill to overflow.
+  function packSeats(t){
+    var gs=guestsAt(t.id), used={}, over=[];
+    gs.sort(function(a,b){return (a.seatIndex==null?1e9:a.seatIndex)-(b.seatIndex==null?1e9:b.seatIndex);});
+    gs.forEach(function(g){
+      var ok=Number.isInteger(g.seatIndex)&&g.seatIndex>=0&&g.seatIndex<t.seats&&!used[g.seatIndex];
+      if(ok){used[g.seatIndex]=g;return;}
+      var i=0; while(i<t.seats&&used[i]) i++;
+      if(i<t.seats){g.seatIndex=i;used[i]=g;} else {g.seatIndex=null;over.push(g);}
+    });
+    return {used:used,over:over};
+  }
+  function firstFree(t){ var p=packSeats(t); for(var i=0;i<t.seats;i++) if(!p.used[i]) return i; return null; }
+  function seatGuest(g,t,idx){
+    // drop on a specific seat: swap if occupied
+    var p=packSeats(t);
+    if(idx==null){ idx=firstFree(t); if(idx==null){ g.tableId=t.id; g.seatIndex=null; return; } }
+    var other=p.used[idx];
+    if(other&&other.id!==g.id){ other.tableId=g.tableId; other.seatIndex=g.seatIndex; if(other.tableId===t.id&&other.seatIndex==null){other.seatIndex=null;} }
+    g.tableId=t.id; g.seatIndex=idx;
+  }
+  function initials(g){ return ((g.firstName||'')[0]||'')+((g.lastName||'')[0]||''); }
+
+  var CLEAR=6;   // ft of clearance to keep open in front of a door
+  function doorEl(t){
+    var W=state.room.widthFt, H=state.room.heightFt;
+    var vertical=t.h>t.w;
+    var cx=t.x+t.w/2, cy=t.y+t.h/2;
+    var into = vertical ? (cx<W/2?'right':'left') : (cy<H/2?'down':'up');
+    var z={};   // clearance zone in ft
+    if(into==='down'){ z={x:t.x-1,y:t.y+t.h,w:t.w+2,h:CLEAR}; }
+    else if(into==='up'){ z={x:t.x-1,y:t.y-CLEAR,w:t.w+2,h:CLEAR}; }
+    else if(into==='right'){ z={x:t.x+t.w,y:t.y-1,w:CLEAR,h:t.h+2}; }
+    else { z={x:t.x-CLEAR,y:t.y-1,w:CLEAR,h:t.h+2}; }
+    var minX=Math.min(t.x,z.x), minY=Math.min(t.y,z.y);
+    var maxX=Math.max(t.x+t.w,z.x+z.w), maxY=Math.max(t.y+t.h,z.y+z.h);
+    var wrap=document.createElement('div'); wrap.className='tblwrap doorwrap'+(selected===t.id?' sel':''); wrap.dataset.tid=t.id;
+    wrap.dataset.ox=String(t.x-minX); wrap.dataset.oy=String(t.y-minY);
+    wrap.style.left=(minX*scale)+'px'; wrap.style.top=(minY*scale)+'px';
+    wrap.style.width=((maxX-minX)*scale)+'px'; wrap.style.height=((maxY-minY)*scale)+'px';
+    var zone=document.createElement('div'); zone.className='doorzone';
+    zone.style.left=((z.x-minX)*scale)+'px'; zone.style.top=((z.y-minY)*scale)+'px';
+    zone.style.width=(z.w*scale)+'px'; zone.style.height=(z.h*scale)+'px';
+    wrap.appendChild(zone);
+    var bar=document.createElement('div'); bar.className='doorbar';
+    bar.style.left=((t.x-minX)*scale)+'px'; bar.style.top=((t.y-minY)*scale)+'px';
+    bar.style.width=(Math.max(t.w*scale,3))+'px'; bar.style.height=(Math.max(t.h*scale,3))+'px';
+    wrap.appendChild(bar);
+    var lab=document.createElement('div'); lab.className='doorlab';
+    var arrow={down:'\u2193',up:'\u2191',right:'\u2192',left:'\u2190'}[into];
+    lab.textContent=(t.nickname?arrow+' '+t.nickname:(t.label||'Door'));
+    var sm=document.createElement('small'); sm.textContent=(t.label&&t.nickname?t.label+' \u00b7 ':'')+ft(vertical?t.h:t.w)+' wide'; lab.appendChild(sm);
+    // label sits inside the zone, near the door
+    if(into==='down'){ lab.style.left=((z.x-minX)*scale+4)+'px'; lab.style.top=((t.y+t.h-minY)*scale+4)+'px'; }
+    else if(into==='up'){ lab.style.left=((z.x-minX)*scale+4)+'px'; lab.style.bottom=((maxY-t.y)*scale+4)+'px'; }
+    else if(into==='right'){ lab.style.left=((t.x+t.w-minX)*scale+4)+'px'; lab.style.top=((z.y-minY)*scale+4)+'px'; }
+    else { lab.style.right=((maxX-t.x)*scale+4)+'px'; lab.style.top=((z.y-minY)*scale+4)+'px'; }
+    wrap.appendChild(lab);
+    wrap.title='Door. Drag to move along the wall. The dashed area is a '+CLEAR+' ft clearance to keep free of tables.';
+    wrap.addEventListener('pointerdown',function(ev){ selected=t.id; renderRoom(); renderInspector(); startDrag(ev,t); });
+    return wrap;
+  }
+
+  function tableEl(t){
+    if(t.shape==='door') return doorEl(t);
+    var isFix=t.shape==='fixture';
+    var pad=isFix?0:PAD;
+    var pack=isFix?{used:{},over:[]}:packSeats(t);
+    var seatedN=guestsAt(t.id).length;
+
+    var wrap=document.createElement('div');
+    wrap.className='tblwrap'+(selected===t.id?' sel':'');
+    wrap.dataset.tid=t.id;
+    wrap.style.left=((t.x-pad)*scale)+'px'; wrap.style.top=((t.y-pad)*scale)+'px';
+    wrap.style.width=((t.w+2*pad)*scale)+'px'; wrap.style.height=((t.h+2*pad)*scale)+'px';
+
+    var d=document.createElement('div');
+    d.className='tbl '+(isFix?'rect fix':t.shape)+(!isFix&&seatedN>=t.seats?' full':'');
+    d.style.left=(pad*scale)+'px'; d.style.top=(pad*scale)+'px';
+    d.style.width=(t.w*scale)+'px'; d.style.height=(t.h*scale)+'px';
+    d.style.justifyContent='center';
+
+    var lab=document.createElement('div'); lab.className='tl'; lab.textContent=t.label||'Table'; d.appendChild(lab);
+    if(t.nickname){ var nk=document.createElement('div'); nk.className='nk'; nk.textContent=t.nickname; d.appendChild(nk); }
+    var cap=document.createElement('div'); cap.className='cap'; cap.textContent=dimText(t); d.appendChild(cap);
+    if(!isFix){
+      var cnt=document.createElement('div'); cnt.className='cnt'+(pack.over.length?' over':'');
+      cnt.textContent=seatedN+'/'+t.seats+(pack.over.length?'  (+'+pack.over.length+' over)':''); d.appendChild(cnt);
+      // drop on the table surface -> first free seat
+      d.addEventListener('dragover',function(ev){ev.preventDefault();ev.dataTransfer.dropEffect='move';d.classList.add('dropok');});
+      d.addEventListener('dragleave',function(){d.classList.remove('dropok');});
+      d.addEventListener('drop',function(ev){
+        ev.preventDefault(); ev.stopPropagation(); d.classList.remove('dropok');
+        if(handleDrop(ev,t,null)){ renderAll(); queueSave(); }
+      });
+    }
+    wrap.appendChild(d);
+
+    // chairs
+    if(!isFix){
+      var pos=seatPositions(t), sz=CHAIR*scale;
+      pos.forEach(function(p,i){
+        var g=pack.used[i];
+        var c=document.createElement('div'); c.className='chair'+(g?' taken':'')+(g&&g.plusOneOf?(g.isChild?' child':' plus'):''); c.dataset.seat=i;
+        c.style.left=((p.x+pad)*scale-sz/2)+'px'; c.style.top=((p.y+pad)*scale-sz/2)+'px';
+        c.style.width=sz+'px'; c.style.height=sz+'px';
+        c.style.fontSize=Math.max(7,Math.min(11,sz*0.42))+'px';
+        c.textContent=g?(isAutoName(g)?'+1':(sz>=38&&g.firstName?g.firstName.slice(0,9):initials(g))):String(i+1);
+        c.title=g?(fullName(g)+(g.party?'  \u00b7  '+g.party:'')+'\nSeat '+(i+1)+'  \u00b7  drag to move, click to unseat'):('Seat '+(i+1)+'  \u00b7  drop a guest here');
+        if(g){
+          c.draggable=true;
+          c.addEventListener('dragstart',function(ev){ev.stopPropagation();ev.dataTransfer.setData('text/plain',g.id);ev.dataTransfer.effectAllowed='move';});
+          c.addEventListener('click',function(ev){ev.stopPropagation();g.tableId=null;g.seatIndex=null;renderAll();queueSave();});
+          c.addEventListener('dblclick',function(ev){ev.stopPropagation();editGuest(g);});
+        }
+        c.addEventListener('dragover',function(ev){ev.preventDefault();ev.stopPropagation();ev.dataTransfer.dropEffect='move';c.classList.add(g?'swap':'dropok');});
+        c.addEventListener('dragleave',function(){c.classList.remove('dropok');c.classList.remove('swap');});
+        c.addEventListener('drop',function(ev){
+          ev.preventDefault(); ev.stopPropagation(); c.classList.remove('dropok'); c.classList.remove('swap');
+          if(handleDrop(ev,t,i)){ renderAll(); queueSave(); }
+        });
+        c.addEventListener('pointerdown',function(ev){ev.stopPropagation();});
+        wrap.appendChild(c);
+      });
+    }
+
+    wrap.addEventListener('pointerdown',function(ev){
+      if(ev.target.closest('.chair')) return;
+      selected=t.id; renderRoom(); renderInspector();
+      startDrag(ev,t);
+    });
+    return wrap;
+  }
+  function byId(id){ return state.guests.filter(function(o){return o.id===id;})[0]; }
+  function readDrop(ev){
+    var v=ev.dataTransfer.getData('text/plain')||'';
+    if(v.indexOf('group:')===0) return {group:v.slice(6)};
+    return {guest:byId(v)};
+  }
+  function groupName(g){ return (g.party||'').trim()||'No group'; }
+  function membersOf(name,onlyUnseated){ return state.guests.filter(function(g){return groupName(g)===name&&(!onlyUnseated||!g.tableId);}); }
+  function seatGroup(name,t){
+    var ms=membersOf(name,true);
+    ms.filter(function(g){return !g.plusOneOf;}).forEach(function(g){ seatWithPlusOnes(g,t,null); });
+    ms.filter(function(g){return g.plusOneOf&&!g.tableId;}).forEach(function(g){ seatGuest(g,t,null); });
+  }
+  function unseatGroup(name){ membersOf(name,false).forEach(function(g){ g.tableId=null; g.seatIndex=null; }); }
+  function handleDrop(ev,t,seatIdx){
+    var p=readDrop(ev);
+    if(p.group){ if(t) seatGroup(p.group,t); else unseatGroup(p.group); return true; }
+    if(!p.guest) return false;
+    if(t) seatWithPlusOnes(p.guest,t,seatIdx==null?null:seatIdx); else { p.guest.tableId=null; p.guest.seatIndex=null; }
+    return true;
+  }
+  function plusOnesOf(g){ return state.guests.filter(function(o){return o.plusOneOf===g.id;}); }          // all companions
+  function adultPlusOnes(g){ return plusOnesOf(g).filter(function(o){return !o.isChild;}); }
+  function childrenOf(g){ return plusOnesOf(g).filter(function(o){return o.isChild;}); }
+  function addChild(primary,name){
+    name=String(name||'').trim(); if(!name) return null;
+    var bits=name.split(/\s+/), first=bits.shift(), last=bits.join(' ')||primary.lastName||'';
+    var c={id:uid(),firstName:first,lastName:last,party:primary.party||'',notes:'',tableId:null,seatIndex:null,plusOneOf:primary.id,isChild:true};
+    state.guests.push(c); return c;
+  }
+  function isAutoName(g){ return !!g.plusOneOf && /\s\+\d+$/.test((g.firstName+' '+g.lastName).trim()); }
+  function addPlusOne(primary){
+    var n=adultPlusOnes(primary).length+1;
+    var c={id:uid(),firstName:(primary.firstName||primary.lastName||'Guest')+"'s",lastName:'+'+n,party:primary.party||'',notes:'',tableId:null,seatIndex:null,plusOneOf:primary.id,isChild:false};
+    state.guests.push(c); return c;
+  }
+  function removeGuest(g){
+    // removing a primary removes their plus-ones too
+    var ids={}; ids[g.id]=1; plusOnesOf(g).forEach(function(c){ids[c.id]=1;});
+    state.guests=state.guests.filter(function(o){return !ids[o.id];});
+  }
+  // seat a guest, and pull their unseated plus-ones into the next chairs
+  function seatWithPlusOnes(g,t,idx){
+    seatGuest(g,t,idx);
+    if(g.tableId!==t.id) return;
+    plusOnesOf(g).forEach(function(c){
+      if(c.tableId) return;                       // already placed somewhere, leave it
+      var p=packSeats(t), want=(g.seatIndex+1)%Math.max(1,t.seats);
+      var free=null;
+      for(var k=0;k<t.seats;k++){ var i=(want+k)%t.seats; if(!p.used[i]){free=i;break;} }
+      if(free==null){ c.tableId=t.id; c.seatIndex=null; }   // overflow, flagged in red
+      else { c.tableId=t.id; c.seatIndex=free; }
+    });
+  }
+  function editGuest(g){
+    Modal.open({title:'Edit guest',fields:[
+        {key:'f',label:'First name',value:g.firstName,half:true},{key:'l',label:'Last name',value:g.lastName,half:true},
+        {key:'p',label:'Group (optional)',value:g.party||'',placeholder:'e.g. Ennis family'},
+        {key:'n',label:'Notes (optional)',value:g.notes||'',placeholder:'dietary, mobility, anything useful'}
+      ],onSubmit:function(v,inputs){
+        if(!v.f.trim()&&!v.l.trim()){ inputs.f.focus(); toast('A name is required.','warn'); return false; }
+        applyEdit(g,v.f,v.l,v.p,v.n);
+      }});
+  }
+  function applyEdit(g,f,l,p,n){
+    var oldFirst=g.firstName;
+    g.firstName=f.trim(); g.lastName=l.trim(); g.party=p.trim(); g.notes=n.trim();
+    // keep auto-named plus-ones in sync when the primary's first name changes
+    if(!g.plusOneOf && oldFirst!==g.firstName){
+      plusOnesOf(g).forEach(function(c){ if(isAutoName(c)) c.firstName=(g.firstName||g.lastName||'Guest')+"'s"; });
+    }
+    renderAll(); queueSave();
+  }
+  function togglePlusOne(g){
+    var cs=adultPlusOnes(g);
+    if(cs.length){
+      var named=cs.filter(function(c){return !isAutoName(c);});
+      Modal.confirm({title:'Remove plus-one',body:'Remove '+cs.length+' plus-one seat'+(cs.length===1?'':'s')+' for '+fullName(g)+'?'+(named.length?'\nOne of them has a real name entered.':''),confirmText:'Remove'}).then(function(ok){
+        if(!ok) return;
+        var ids={}; cs.forEach(function(c){ids[c.id]=1;});
+        state.guests=state.guests.filter(function(o){return !ids[o.id];});
+        renderAll(); queueSave();
+      });
+      return;
+    } else {
+      var c=addPlusOne(g);
+      var t=g.tableId?state.tables.filter(function(o){return o.id===g.tableId;})[0]:null;
+      if(t) seatWithPlusOnes(g,t,g.seatIndex);
+    }
+    renderAll(); queueSave();
+  }
+
+  function startDrag(ev,t){
+    ev.preventDefault();
+    var room=$('room'), rect=room.getBoundingClientRect();
+    var pad=(t.shape==='fixture'||t.shape==='door')?0:PAD;
+    var offX=ev.clientX-rect.left-t.x*scale, offY=ev.clientY-rect.top-t.y*scale;
+    function move(e){
+      var nx=(e.clientX-rect.left-offX)/scale, ny=(e.clientY-rect.top-offY)/scale;
+      nx=Math.round(nx*2)/2; ny=Math.round(ny*2)/2;
+      t.x=Math.max(0,Math.min(state.room.widthFt-t.w,nx));
+      t.y=Math.max(0,Math.min(state.room.heightFt-t.h,ny));
+      if(t.shape==='door'){ renderRoom(); return; }
+      var el=document.querySelector('.tblwrap[data-tid="'+t.id+'"]');
+      if(el){el.style.left=((t.x-pad)*scale)+'px';el.style.top=((t.y-pad)*scale)+'px';}
+    }
+    function up(){
+      window.removeEventListener('pointermove',move);
+      window.removeEventListener('pointerup',up);
+      renderInspector(); queueSave();
+    }
+    window.addEventListener('pointermove',move);
+    window.addEventListener('pointerup',up);
+  }
+
+  /* ---------------- inspector ---------------- */
+  function renderInspector(){
+    var box=$('insp'); box.innerHTML='';
+    var t=state.tables.filter(function(o){return o.id===selected;})[0];
+    if(!t){
+      box.innerHTML='<div class="empty"><b>Room</b></div>';
+      addSelect(box,'Room preset',[['','Choose a room…']].concat(ROOMS.map(function(r){return [r.k,r.k];})),'',function(v){
+        var r=ROOMS.filter(function(o){return o.k===v;})[0]; if(!r) return;
+        state.room.name=r.name; state.room.widthFt=r.w; state.room.heightFt=r.h;
+        renderRoom(); renderInspector(); queueSave();
+      });
+      addField(box,'Room name','text',state.room.name,function(v){state.room.name=v;renderRoom();queueSave();});
+      var r=document.createElement('div'); r.className='row2'; box.appendChild(r);
+      addField(r,'Width (ft)','number',state.room.widthFt,function(v){state.room.widthFt=Math.max(5,+v||60);renderRoom();queueSave();});
+      addField(r,'Depth (ft)','number',state.room.heightFt,function(v){state.room.heightFt=Math.max(5,+v||40);renderRoom();queueSave();});
+      var seed=document.createElement('button'); seed.className='btn sm'; seed.style.width='100%'; seed.style.margin='6px 0 10px';
+      seed.textContent='Load Canfield Ballroom layout';
+      seed.addEventListener('click',seedBallroom);
+      box.appendChild(seed);
+      var h=document.createElement('div'); h.className='hint';
+      h.textContent='Drawn to scale in feet from the Canfield floor plan. Grid squares are 5 ft. Fixtures (hatched) are things you plan around. Doors are red with a dashed 6 ft clearance zone: keep chairs out of it. Column and door positions in the loaded layout are approximate; drag them to match the plan.';
+      box.appendChild(h);
+      return;
+    }
+    var isFix=t.shape==='fixture', isDoor=t.shape==='door';
+    var ttl=document.createElement('div'); ttl.className='empty'; ttl.innerHTML='<b>'+(isDoor?'Door':isFix?'Fixture':'Table')+'</b>'; box.appendChild(ttl);
+    if(isDoor){
+      addField(box,'Leads to','text',t.nickname||'',function(v){t.nickname=v;renderRoom();queueSave();}).placeholder='e.g. Kitchen, Parlor Room, Foyer';
+      addField(box,'Note (optional)','text',t.label==='Door'?'':t.label,function(v){t.label=v||'Door';renderRoom();queueSave();}).placeholder='e.g. caterers only, guest entrance';
+      var vert=t.h>t.w;
+      addField(box,'Width (ft)','number',vert?t.h:t.w,function(v){ var n=Math.max(1,+v||3); if(vert)t.h=n; else t.w=n; renderRoom();queueSave(); });
+      var rd=document.createElement('button'); rd.className='btn sm ghost'; rd.style.width='100%'; rd.style.marginTop='6px'; rd.textContent='Rotate (side wall)';
+      rd.addEventListener('click',function(){ var w=t.w; t.w=t.h; t.h=w; renderRoom(); renderInspector(); queueSave(); }); box.appendChild(rd);
+      var deld=document.createElement('button'); deld.className='btn sm danger'; deld.style.width='100%'; deld.style.marginTop='6px'; deld.textContent='Remove door';
+      deld.addEventListener('click',function(){ state.tables=state.tables.filter(function(o){return o.id!==t.id;}); selected=null; renderAll(); queueSave(); }); box.appendChild(deld);
+      var hd=document.createElement('div'); hd.className='hint'; hd.textContent='Keep the dashed clearance free of chairs so guests and caterers can move through.'; box.appendChild(hd);
+      return;
+    }
+    addField(box,isFix?'Label':'Table number / label','text',t.label,function(v){t.label=v;renderRoom();queueSave();});
+    if(isFix){
+      var r0=document.createElement('div'); r0.className='row2'; box.appendChild(r0);
+      addField(r0,'Width (ft)','number',t.w,function(v){t.w=Math.max(.5,+v||1);renderRoom();queueSave();});
+      addField(r0,'Depth (ft)','number',t.h,function(v){t.h=Math.max(.5,+v||1);renderRoom();queueSave();});
+      var rotf=document.createElement('button'); rotf.className='btn sm ghost'; rotf.style.width='100%'; rotf.style.marginTop='6px';
+      rotf.textContent='Rotate 90\u00b0';
+      rotf.addEventListener('click',function(){ var w=t.w; t.w=t.h; t.h=w; renderRoom(); renderInspector(); queueSave(); });
+      box.appendChild(rotf);
+      var delf=document.createElement('button'); delf.className='btn sm danger'; delf.style.width='100%'; delf.style.marginTop='6px';
+      delf.textContent='Remove fixture';
+      delf.addEventListener('click',function(){ state.tables=state.tables.filter(function(o){return o.id!==t.id;}); selected=null; renderAll(); queueSave(); });
+      box.appendChild(delf);
+      return;
+    }
+    addField(box,'Nickname','text',t.nickname||'',function(v){t.nickname=v;renderRoom();queueSave();})
+      .placeholder='e.g. College friends';
+    addSelect(box,'Size preset',[['','Custom size…']].concat(PRESETS.map(function(p){return [p.k,p.k+(p.count!=null?'  ('+p.count+' owned)':'')];})),'',function(v){
+      var p=PRESETS.filter(function(o){return o.k===v;})[0]; if(!p) return;
+      t.shape=p.shape; t.w=p.w; t.h=p.h; t.seats=p.seats;
+      renderRoom(); renderInspector(); queueSave();
+    });
+    addSelect(box,'Shape',[['round','Round'],['rect','Long / rectangular']],t.shape,function(v){
+      t.shape=v; if(v==='round'){t.h=t.w;} else {t.h=Math.min(t.h,3);}
+      renderRoom();renderInspector();queueSave();
+    });
+    addField(box,'Seats','number',t.seats,function(v){t.seats=Math.max(0,Math.min(40,+v||0));renderRoom();queueSave();});
+    var r2=document.createElement('div'); r2.className='row2'; box.appendChild(r2);
+    addField(r2,(t.shape==='round'?'Diameter (ft)':'Length (ft)'),'number',t.w,function(v){
+      t.w=Math.max(1,+v||5); if(t.shape==='round')t.h=t.w; renderRoom();queueSave();
+    });
+    if(t.shape!=='round') addField(r2,'Depth (ft)','number',t.h,function(v){t.h=Math.max(1,+v||3);renderRoom();queueSave();});
+
+    if(t.shape==='rect'){
+      var rr=document.createElement('div'); rr.className='row2'; box.appendChild(rr);
+      var rot=document.createElement('button'); rot.className='btn sm ghost'; rot.style.flex='1'; rot.style.marginBottom='8px';
+      rot.textContent='Rotate 90\u00b0';
+      rot.addEventListener('click',function(){ var w=t.w; t.w=t.h; t.h=w; t.x=Math.min(t.x,Math.max(0,state.room.widthFt-t.w)); t.y=Math.min(t.y,Math.max(0,state.room.heightFt-t.h)); renderRoom(); renderInspector(); queueSave(); });
+      rr.appendChild(rot);
+      var flp=document.createElement('button'); flp.className='btn sm ghost'; flp.style.flex='1'; flp.style.marginBottom='8px';
+      flp.textContent='Flip seat side'; flp.title='Move the seats to the opposite long side (which way the head table faces)';
+      flp.addEventListener('click',function(){ t.flip=!t.flip; renderRoom(); queueSave(); });
+      rr.appendChild(flp);
+    }
+    var dup=document.createElement('button'); dup.className='btn sm ghost'; dup.style.width='100%'; dup.style.marginBottom='8px';
+    dup.textContent='Duplicate table';
+    dup.addEventListener('click',function(){
+      var c={id:uid(),label:nextLabel(),shape:t.shape,seats:t.seats,x:Math.min(state.room.widthFt-t.w,t.x+t.w+1),y:t.y,w:t.w,h:t.h};
+      state.tables.push(c); selected=c.id; renderAll(); queueSave();
+    });
+    box.appendChild(dup);
+
+    var del=document.createElement('button'); del.className='btn sm danger'; del.style.width='100%';
+    del.textContent='Delete table';
+    del.addEventListener('click',function(){
+      guestsAt(t.id).forEach(function(g){g.tableId=null;g.seatIndex=null;});
+      state.tables=state.tables.filter(function(o){return o.id!==t.id;});
+      selected=null; renderAll(); queueSave();
+    });
+    box.appendChild(del);
+  }
+
+  function addField(parent,label,type,val,onchange){
+    var f=document.createElement('div'); f.className='f'; f.style.flex='1';
+    var l=document.createElement('label'); l.textContent=label; f.appendChild(l);
+    var i=document.createElement('input'); i.type=type; i.value=esc(val);
+    i.addEventListener('change',function(){onchange(i.value);});
+    f.appendChild(i); parent.appendChild(f); return i;
+  }
+  function addSelect(parent,label,opts,val,onchange){
+    var f=document.createElement('div'); f.className='f';
+    var l=document.createElement('label'); l.textContent=label; f.appendChild(l);
+    var s=document.createElement('select');
+    opts.forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(o[0]===val)op.selected=true;s.appendChild(op);});
+    s.addEventListener('change',function(){onchange(s.value);});
+    f.appendChild(s); parent.appendChild(f);
+  }
+
+  /* ---------------- toolbar actions ---------------- */
+  function nextLabel(){
+    var real=state.tables.filter(isSeating);
+    var n=real.length+1;
+    var used={}; real.forEach(function(t){used[t.label]=1;});
+    while(used['Table '+n]) n++;
+    return 'Table '+n;
+  }
+  function addTable(shape){
+    var t = shape==='round'
+      ? {id:uid(),label:nextLabel(),shape:'round',seats:8,x:2,y:2,w:5,h:5}
+      : {id:uid(),label:nextLabel(),shape:'rect',seats:8,x:2,y:2,w:8,h:2.5,flip:false};
+    // find a free-ish spot
+    var step=0;
+    while(state.tables.some(function(o){return Math.abs(o.x-t.x)<t.w&&Math.abs(o.y-t.y)<t.h;}) && step<200){
+      t.x+=t.w+1;
+      if(t.x+t.w>state.room.widthFt){t.x=2;t.y+=t.h+1;}
+      step++;
+    }
+    state.tables.push(t); selected=t.id; renderAll(); queueSave();
+  }
+  $('addRound').addEventListener('click',function(){addTable('round');});
+
+  (function(){
+    var sel=$('addFixture');
+    FIXTURES.forEach(function(f){ var o=document.createElement('option'); o.value=f.k; o.textContent=f.k; sel.appendChild(o); });
+    sel.addEventListener('change',function(){
+      var f=FIXTURES.filter(function(o){return o.k===sel.value;})[0]; sel.value='';
+      if(!f) return;
+      var t;
+      if(f.door){
+        Modal.ask({title:'Add a door',label:'Where does it lead?',placeholder:'e.g. Kitchen, Parlor Room, Foyer',submitText:'Add door'}).then(function(to){
+          if(to===null) return;
+          var dt={id:uid(),label:'Door',nickname:(to||'').trim(),shape:'door',seats:0,x:Math.max(0,state.room.widthFt/2-f.w/2),y:0,w:f.w,h:f.h};
+          state.tables.push(dt); selected=dt.id; renderAll(); queueSave();
+        });
+        return;
+      } else {
+        t={id:uid(),label:f.k.replace(/\s*\(.*$/,''),nickname:'',shape:'fixture',seats:0,x:2,y:2,w:f.w,h:f.h};
+      }
+      state.tables.push(t); selected=t.id; renderAll(); queueSave();
+    });
+  })();
+
+  function addFix(label,x,y,w,h){ state.tables.push({id:uid(),label:label,nickname:'',shape:'fixture',seats:0,x:x,y:y,w:w,h:h}); }
+  function seedBallroom(){
+    Modal.confirm({title:'Load Canfield Ballroom layout',body:'Sets this version to the Canfield Ballroom (92\'10" x 58\'4") and places the bandstand, stage stairs, 8 columns, coat closet, men\'s room, dividers and every door from the architect\'s plan.\n\nYour tables and guests are kept.',confirmText:'Load layout',danger:false}).then(function(ok){ if(ok) seedBallroomNow(); });
+  }
+  function seedBallroomNow(){
+    var W=92.83, H=58.33, topA=13, botA=12.67, nave=H-topA-botA;   // 32.67 ft clear between the two column lines
+    state.room={name:'Canfield Ballroom',widthFt:W,heightFt:H};
+    state.tables=state.tables.filter(function(t){ return !(t.shape==='door' || (t.shape==='fixture' && /^(Bandstand|Stage stairs|Column|Coat closet|Men's room|Divider \(do not move\))$/.test(t.label))); });
+
+    // Bandstand spans exactly the clear width between the column lines; stairs at its front corners
+    addFix('Bandstand',0,topA,12.25,nave);
+    addFix('Stage stairs',12.25,topA+1,3,3);
+    addFix('Stage stairs',12.25,H-botA-4,3,3);
+
+    // 8 columns per side, measured off the architect's plan. The first pair sits on the
+    // bandstand's front corners, which is why the plan looks "hugged" by the poles.
+    // Even bays from the bandstand's front edge (12.25) to the last measured column (87.8):
+    // spacing 10.79 ft, which reproduces the plan's measured positions within a foot.
+    var colX=[]; for(var ci=0;ci<8;ci++) colX.push(+(12.25+ci*(87.8-12.25)/7).toFixed(2));
+    colX.forEach(function(cx){
+      addFix('Column',cx-0.75,topA-0.75,1.5,1.5);        // top column line (y = 13.0)
+      addFix('Column',cx-0.75,H-botA-0.75,1.5,1.5);      // bottom column line (y = 45.67)
+    });
+
+    // Rooms built into the parlor-side alcove, each filling one column bay
+    addFix('Coat closet',45.5,0.5,9,topA-1);              // fills the bay between columns 4 and 5, between the bar door and the men's room
+    addFix("Men's room",77.8,0.5,9.2,topA-1);             // fills the bay between columns 7 and 8
+
+    // Stationary dividers on the kitchen-side alcove, marked "do not move"
+    addFix('Divider (do not move)',36,H-botA+4,10,0.8);
+    addFix('Divider (do not move)',60.5,H-botA+5,5,0.8);
+
+    // Doors. y=0 is the outside wall on the parlor side; y=12.5 is the inner alcove line
+    // (rooms inside the alcove open onto the dance floor); y=H-0.5 is the kitchen-side wall.
+    function door(to,note,center,w,y){ state.tables.push({id:uid(),label:note||'Door',nickname:to,shape:'door',seats:0,x:center-w/2,y:y,w:w,h:0.5}); }
+    // parlor-side outside wall
+    door('Parlor Room','Pocket doors, cocktail hour flows in here',19.5,9.4,0);
+    door('Bar Room','',40.1,3,0);
+    door('Foyer / Whitney Stairs','',73.0,4,0);
+    door('Entry hall','',90.8,3,0);
+    // inner alcove line (faces the room)
+    door('Coat Closet','Coat room doorway',47,3,topA-0.5);
+    door("Men's Room",'',79.6,3,topA-0.5);
+    // kitchen-side outside wall
+    door('Bandstand exit','Vendors / load-in door',4.5,4,H-0.5);
+    door('Kitchen','Caterers, busy all night',40.6,6.6,H-0.5);
+    door("Ladies' Room",'',61.9,4,H-0.5);
+    door('Vestibule / Foyer','Main guest entrance',74.8,6.6,H-0.5);
+    door('Foyer / Handicap ramp','',90.3,3.5,H-0.5);
+
+    selected=null; renderAll(); queueSave();
+  }
+  $('addRect').addEventListener('click',function(){addTable('rect');});
+
+  $('autoArrange').addEventListener('click',function(){
+    var pad=2, x=pad, y=pad, rowH=0;
+    state.tables.forEach(function(t){
+      if(!isSeating(t)) return;
+      if(x+t.w>state.room.widthFt-pad){ x=pad; y+=rowH+2; rowH=0; }
+      t.x=x; t.y=y; x+=t.w+2; rowH=Math.max(rowH,t.h);
+    });
+    renderAll(); queueSave();
+  });
+
+  $('zoom').addEventListener('input',function(){scale=+this.value;renderRoom();});
+  $('undoBtn').addEventListener('click',undo);
+  $('search').addEventListener('input',function(){filter=this.value;renderSidebar();renderByTable();});
+  $('groupSel').addEventListener('change',function(){groupFilter=this.value;renderSidebar();renderByTable();});
+  $('groupBy').addEventListener('change',function(){renderSidebar();});
+  $('printBtn').addEventListener('click',function(){window.print();});
+
+  $('addGuest').addEventListener('click',addGuestFromForm);
+  ['gFirst','gLast','gParty'].forEach(function(id){
+    $(id).addEventListener('keydown',function(e){if(e.key==='Enter')addGuestFromForm();});
+  });
+  function addGuestFromForm(){
+    var f=$('gFirst').value.trim(), l=$('gLast').value.trim(), p=$('gParty').value.trim();
+    if(!f&&!l) return;
+    var dupe=state.guests.some(function(o){return (o.firstName+' '+o.lastName).trim().toLowerCase()===(f+' '+l).trim().toLowerCase();});
+    if(dupe){ Modal.confirm({title:'Possible duplicate',body:(f+' '+l).trim()+' is already on the list. Add another person with the same name?',confirmText:'Add anyway',danger:false}).then(function(ok){ if(ok) finishAdd(f,l,p); }); return; }
+    finishAdd(f,l,p);
+  }
+  function finishAdd(f,l,p){
+    var g={id:uid(),firstName:f,lastName:l,party:p,notes:'',tableId:null,seatIndex:null,plusOneOf:null};
+    state.guests.push(g);
+    if($('gPlus').checked) addPlusOne(g);
+    $('gKids').value.split(',').forEach(function(nm){ addChild(g,nm); });
+    $('gFirst').value=''; $('gLast').value=''; $('gKids').value=''; $('gPlus').checked=false; $('gFirst').focus();
+    renderAll(); queueSave();
+  }
+
+  $('bulkBtn').addEventListener('click',function(){
+    Modal.open({title:'Paste a guest list',body:'One guest per line. "First Last" or "First Last, Group".',wide:true,
+      fields:[{key:'t',label:'Guests',type:'textarea',placeholder:'Jane Doe, Ennis family\nJohn Smith'}],submitText:'Add guests',
+      onSubmit:function(v){ var txt=v.t; if(!txt.trim()) return false; var before=state.guests.length; pasteGuests(txt); toast('Added '+(state.guests.length-before)+' guest'+(state.guests.length-before===1?'':'s')+'.','ok'); }});
+  });
+  function pasteGuests(txt){
+    txt.split('\n').forEach(function(line){
+      line=line.trim(); if(!line) return;
+      var party=''; var comma=line.indexOf(',');
+      if(comma>-1){ party=line.slice(comma+1).trim(); line=line.slice(0,comma).trim(); }
+      var bits=line.split(/\s+/);
+      var first=bits.shift()||''; var last=bits.join(' ');
+      state.guests.push({id:uid(),firstName:first,lastName:last,party:party,notes:'',tableId:null,seatIndex:null,plusOneOf:null,isChild:false});
+    });
+    renderAll(); queueSave();
+  }
+
+  $('importBtn').textContent='Sync with RSVPs';
+  $('importBtn').addEventListener('click',function(){
+    var rs=window.__rsvpGuests||[];
+    if(!rs.length){ toast('No RSVPs found yet.','warn'); return; }
+    var have={};
+    state.guests.forEach(function(g){ if(!g.plusOneOf) have[(g.firstName+' '+g.lastName).toLowerCase().trim()]=g; });
+
+    // 1) declined people who are still on the seating list
+    var declinedListed=[];
+    rs.forEach(function(r){ if(r.attending==='declined'){ var g=have[(r.firstName+' '+r.lastName).toLowerCase().trim()]; if(g) declinedListed.push(g); } });
+
+    // 2) accepted people not yet on the list
+    var missing=rs.filter(function(r){ return r.attending==='accepted' && !have[(r.firstName+' '+r.lastName).toLowerCase().trim()]; });
+
+    var msg=[];
+    if(declinedListed.length) msg.push(declinedListed.length+' guest'+(declinedListed.length===1?' has':'s have')+' DECLINED but are still on your list:\n   \u2022 '+declinedListed.map(function(g){return fullName(g)+(g.tableId?' (seated)':'');}).join('\n   \u2022 '));
+    if(missing.length) msg.push(missing.length+' accepted RSVP'+(missing.length===1?'':'s')+' not on your list yet:\n   \u2022 '+missing.map(function(r){return (r.firstName+' '+r.lastName).trim()+(r.partySize>1?' (party of '+r.partySize+')':'');}).join('\n   \u2022 '));
+    if(!msg.length){ toast('Everything matches. Every accepted RSVP is on the list and nobody listed has declined.','ok',6000); return; }
+
+    var text=msg.join('\n\n');
+    var addN=missing.length, remN=declinedListed.length;
+    Modal.open({title:'Sync with RSVPs',body:text,wide:true,submitText:addN?'Add '+addN+' missing guest'+(addN===1?'':'s'):'Close',cancelText:remN?'Also remove declined':false,
+      onSubmit:function(){
+        if(!addN) return;
+        var added=0;
+        missing.forEach(function(r){
+          var g={id:uid(),firstName:r.firstName,lastName:r.lastName,party:'',notes:r.note||'',tableId:null,seatIndex:null,plusOneOf:null,isChild:false};
+          state.guests.push(g); added++;
+          for(var i=1;i<(r.partySize||1);i++){ addPlusOne(g); added++; }
+        });
+        renderAll(); queueSave(); toast('Added '+added+' from RSVPs.','ok');
+      },
+      onCancel:function(){
+        if(!remN) return;
+        Modal.confirm({title:'Remove declined guests',body:'Remove the '+remN+' declined guest'+(remN===1?'':'s')+' (and their plus-ones / kids) from the seating list?',confirmText:'Remove'}).then(function(ok){
+          if(!ok) return; declinedListed.forEach(removeGuest); renderAll(); queueSave(); toast('Removed '+remN+' declined.','ok');
+        });
+      }});
+  });
+
+  // drop back onto the unseated column
+  var un=$('unassigned');
+  // in Seat mode the unseated list can be short; let its header take drops too
+  var unHead=$('unassigned').parentNode.previousElementSibling;
+  un.addEventListener('dragover',function(ev){ev.preventDefault();un.classList.add('dropok');});
+  un.addEventListener('dragleave',function(){un.classList.remove('dropok');});
+  function unseatDrop(ev){
+    ev.preventDefault(); un.classList.remove('dropok');
+    if(handleDrop(ev,null,null)){ renderAll(); queueSave(); }
+  }
+  un.addEventListener('drop',unseatDrop);
+  if(unHead){
+    unHead.addEventListener('dragover',function(ev){ev.preventDefault();un.classList.add('dropok');});
+    unHead.addEventListener('dragleave',function(){un.classList.remove('dropok');});
+    unHead.addEventListener('drop',unseatDrop);
+  }
+
+  // click empty floor to deselect
+  $('floorwrap').addEventListener('pointerdown',function(ev){
+    if(ev.target.id==='floorwrap'||ev.target.id==='room'){ selected=null; renderRoom(); renderInspector(); }
+  });
+
+  /* ---------------- "Who's where" list view ---------------- */
+  var listMode=false, listBy='table', lfilter='', mode='design';
+  function natCmp(a,b){ return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'}); }
+  function isSeating(t){ return t.shape==='round'||t.shape==='rect'; }
+  function realTables(){ return state.tables.filter(isSeating).sort(function(a,b){return natCmp(a.label,b.label);}); }
+
+  function setMode(m){
+    mode=m; listMode=(m==='list');
+    Array.prototype.forEach.call(document.querySelectorAll('.modes button'),function(b){b.classList.toggle('on',b.dataset.mode===m);});
+    $('floorwrap').hidden=listMode; $('listview').hidden=!listMode;
+    $('insp').style.display=(m==='design')?'':'none';
+    document.body.classList.toggle('seatmode',m==='seat');
+    $('addSec').hidden=(m!=='design'); $('invSec').hidden=(m!=='design');
+    $('bytable').hidden=(m!=='seat');
+    if(listMode) renderList(); else renderAll();
+    if(m==='seat') fitZoom();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.modes button'),function(b){ b.addEventListener('click',function(){setMode(b.dataset.mode);}); });
+
+  function fitZoom(){
+    var wrap=$('floorwrap'); if(!wrap||!state) return;
+    var avail=wrap.clientWidth-56;
+    var s=Math.floor(avail/state.room.widthFt);
+    scale=Math.max(6,Math.min(30,s)); $('zoom').value=scale; renderRoom();
+  }
+  $('fitBtn').addEventListener('click',fitZoom);
+
+  // Seat mode: every table with its people, as drag targets and drag sources.
+  function renderByTable(){
+    var box=$('bytable'); box.innerHTML='';
+    if(mode!=='seat') return;
+    var f=filter.toLowerCase();
+    var head=document.createElement('div'); head.className='subhead'; head.textContent='Seated, by table'; box.appendChild(head);
+    var any=false;
+    realTables().forEach(function(t){
+      var pack=packSeats(t);
+      var gs=guestsAt(t.id).slice().sort(function(a,b){return (a.seatIndex==null?1e9:a.seatIndex)-(b.seatIndex==null?1e9:b.seatIndex);});
+      if(groupFilter){ gs=gs.filter(function(g){return groupName(g)===groupFilter;}); if(!gs.length) return; }
+      var tableMatches=!f||(t.label+' '+t.nickname).toLowerCase().indexOf(f)>-1;
+      if(f&&!tableMatches){ gs=gs.filter(function(g){return (fullName(g)+' '+groupName(g)).toLowerCase().indexOf(f)>-1;}); if(!gs.length) return; }
+      any=true;
+      var grp=document.createElement('div'); grp.className='tgroup'+(selected===t.id?' sel':'');
+      var h=document.createElement('div'); h.className='th';
+      var b=document.createElement('b'); b.textContent=t.label||'Table'; h.appendChild(b);
+      if(t.nickname){ var nk=document.createElement('span'); nk.className='nick'; nk.textContent=t.nickname; h.appendChild(nk); }
+      var n=guestsAt(t.id).length;
+      var cnt=document.createElement('span'); cnt.className='cnt'+(pack.over.length?' over':(n>=t.seats?' full':'')); cnt.textContent=n+'/'+t.seats+(pack.over.length?' over':''); h.appendChild(cnt);
+      h.title='Click to find this table on the floor. Drop a guest here to seat them at it.';
+      h.addEventListener('click',function(){
+        selected=t.id; renderRoom(); renderByTable();
+        var el=document.querySelector('.tblwrap[data-tid="'+t.id+'"]'); if(el) el.scrollIntoView({behavior:'smooth',block:'center',inline:'center'});
+      });
+      grp.appendChild(h);
+      var body=document.createElement('div'); body.className='body';
+      gs.forEach(function(g){
+        var c=chipEl(g);
+        var sn=document.createElement('span'); sn.className='seatno'; sn.textContent=g.seatIndex==null?'!':String(g.seatIndex+1); sn.title=g.seatIndex==null?'Over capacity':'Seat '+(g.seatIndex+1);
+        c.insertBefore(sn,c.firstChild);
+        body.appendChild(c);
+      });
+      if(!gs.length){ var e=document.createElement('div'); e.className='none'; e.textContent='No one yet. Drop guests here.'; body.appendChild(e); }
+      grp.appendChild(body);
+      grp.addEventListener('dragover',function(ev){ev.preventDefault();ev.dataTransfer.dropEffect='move';grp.classList.add('dropok');});
+      grp.addEventListener('dragleave',function(ev){ if(!grp.contains(ev.relatedTarget)) grp.classList.remove('dropok'); });
+      grp.addEventListener('drop',function(ev){
+        ev.preventDefault(); ev.stopPropagation(); grp.classList.remove('dropok');
+        var p=readDrop(ev);
+        if(p.guest&&p.guest.tableId===t.id) return;
+        if(handleDrop(ev,t,null)){ renderAll(); queueSave(); }
+      });
+      box.appendChild(grp);
+    });
+    if(!any){ var e2=document.createElement('div'); e2.className='none'; e2.textContent=f?'No seated guests match.':'Add tables in Design room first.'; box.appendChild(e2); }
+  }
+
+  $('lsearch').addEventListener('input',function(){lfilter=this.value.toLowerCase();renderList();});
+  Array.prototype.forEach.call(document.querySelectorAll('.seg button'),function(b){
+    b.addEventListener('click',function(){
+      listBy=b.dataset.mode;
+      Array.prototype.forEach.call(document.querySelectorAll('.seg button'),function(x){x.classList.toggle('on',x===b);});
+      renderList();
+    });
+  });
+
+  function moveSelect(g){
+    var s=document.createElement('select');
+    var o0=document.createElement('option'); o0.value=''; o0.textContent=g.tableId?'Move to\u2026':'Seat at\u2026'; s.appendChild(o0);
+    var ou=document.createElement('option'); ou.value='__unseat'; ou.textContent='Unseat'; s.appendChild(ou);
+    realTables().forEach(function(t){
+      var free=t.seats-guestsAt(t.id).length;
+      var o=document.createElement('option'); o.value=t.id;
+      o.textContent=t.label+(t.nickname?' \u00b7 '+t.nickname:'')+'  ('+free+' open)';
+      if(t.id===g.tableId) o.disabled=true;
+      s.appendChild(o);
+    });
+    s.addEventListener('change',function(){
+      if(s.value==='__unseat'){ g.tableId=null; g.seatIndex=null; }
+      else if(s.value){ var t=state.tables.filter(function(o){return o.id===s.value;})[0]; if(t) seatWithPlusOnes(g,t,null); }
+      renderAll(); queueSave();
+    });
+    return s;
+  }
+  function match(g,t){
+    if(!lfilter) return true;
+    var hay=(fullName(g)+' '+g.party+' '+g.notes+' '+(t?t.label+' '+t.nickname:'unseated')).toLowerCase();
+    return hay.indexOf(lfilter)>-1;
+  }
+  function row(cols,cls){
+    var r=document.createElement('div'); r.className='lrow'+(cls?' '+cls:'');
+    cols.forEach(function(c){ if(typeof c==='string'){var s=document.createElement('span');s.textContent=c;r.appendChild(s);} else r.appendChild(c); });
+    return r;
+  }
+  function span(txt,cls){ var s=document.createElement('span'); s.className=cls||''; s.textContent=txt; return s; }
+  function nameCell(g){
+    var s=document.createElement('span'); s.className='nm';
+    var n=document.createElement('span'); n.textContent=fullName(g); s.appendChild(n);
+    if(g.plusOneOf){ var pr=byId(g.plusOneOf); var tg=document.createElement('span'); tg.className='tagp'+(g.isChild?' k':''); tg.textContent=g.isChild?'kid':'+1'; tg.title=(g.isChild?'Child of ':'Plus-one of ')+(pr?fullName(pr):''); s.appendChild(tg); }
+    else {
+      var a=adultPlusOnes(g).length, k=childrenOf(g).length;
+      if(a){ var tg2=document.createElement('span'); tg2.className='tagp'; tg2.textContent='+'+a; tg2.title='Brings a plus-one'; s.appendChild(tg2); }
+      if(k){ var tg3=document.createElement('span'); tg3.className='tagp k'; tg3.textContent=k+' kid'+(k===1?'':'s'); s.appendChild(tg3); }
+    }
+    var ed=document.createElement('button'); ed.className='ed'; ed.textContent='\u270e'; ed.title='Edit'; ed.addEventListener('click',function(){editGuest(g);}); s.appendChild(ed);
+    return s;
+  }
+
+  function renderList(){
+    var body=$('lbody'); body.innerHTML=''; body.className=listBy==='az'?'az':'';
+    if(listBy==='table'){
+      realTables().forEach(function(t){
+        var pack=packSeats(t);
+        var rows=[];
+        for(var i=0;i<t.seats;i++){
+          var g=pack.used[i];
+          if(g&&!match(g,t)) continue;
+          if(!g&&lfilter) continue;
+          rows.push(g
+            ? row([span(String(i+1),'seatno'),nameCell(g),span(g.party,'pty'),span(g.notes,'nts'),moveSelect(g)])
+            : row([span(String(i+1),'seatno'),span('open','nm open'),'','','']));
+        }
+        pack.over.forEach(function(g){ if(match(g,t)) rows.push(row([span('!','seatno'),nameCell(g),span(g.party,'pty'),span('over capacity','nts'),moveSelect(g)])); });
+        if(!rows.length) return;
+        var card=document.createElement('section'); card.className='tcard';
+        var h=document.createElement('header');
+        var h3=document.createElement('h3'); h3.textContent=t.label||'Table'; h.appendChild(h3);
+        if(t.nickname){ h.appendChild(span(t.nickname,'nick')); }
+        var seatedN=guestsAt(t.id).length;
+        h.appendChild(span(seatedN+' / '+t.seats+' seated  \u00b7  '+dimText(t),'meta'+(pack.over.length?' over':'')));
+        card.appendChild(h);
+        card.appendChild(row([span('Seat','seatno'),'Guest','Group','Notes',''],'lhead'));
+        rows.forEach(function(r){card.appendChild(r);});
+        body.appendChild(card);
+      });
+      var un=state.guests.filter(function(g){return !g.tableId&&match(g,null);}).sort(function(a,b){return natCmp(a.lastName+a.firstName,b.lastName+b.firstName);});
+      if(un.length){
+        var card=document.createElement('section'); card.className='tcard';
+        var h=document.createElement('header'); var h3=document.createElement('h3'); h3.textContent='Not yet seated'; h.appendChild(h3);
+        h.appendChild(span(un.length+' guest'+(un.length===1?'':'s'),'meta')); card.appendChild(h);
+        un.forEach(function(g){ card.appendChild(row([span('\u2014','seatno'),nameCell(g),span(g.party,'pty'),span(g.notes,'nts'),moveSelect(g)])); });
+        body.appendChild(card);
+      }
+      if(!body.children.length){ var e=document.createElement('div'); e.className='empty'; e.textContent='Nothing matches.'; body.appendChild(e); }
+      return;
+    }
+    // A to Z
+    var card=document.createElement('section'); card.className='tcard';
+    card.appendChild(row(['Guest','Group','Table \u00b7 Seat','Notes',''],'lhead'));
+    var tmap={}; state.tables.forEach(function(t){tmap[t.id]=t;});
+    state.tables.filter(isSeating).forEach(packSeats);
+    state.guests.slice().sort(function(a,b){return natCmp(a.lastName+', '+a.firstName,b.lastName+', '+b.firstName);}).forEach(function(g){
+      var t=g.tableId?tmap[g.tableId]:null;
+      if(!match(g,t)) return;
+      var where=t?(t.label+(g.seatIndex!=null?'  \u00b7  seat '+(g.seatIndex+1):'  \u00b7  over')):'unseated';
+      card.appendChild(row([nameCell(g),span(g.party,'pty'),span(where,t?'':'nm open'),span(g.notes,'nts'),moveSelect(g)]));
+    });
+    body.appendChild(card);
+  }
+
+  /* ---------------- CSV ---------------- */
+  function csvEscape(v){ v=v==null?'':String(v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+  function download(name,text){
+    var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'})); a.download=name; document.body.appendChild(a); a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+  }
+  $('csvTemplate').addEventListener('click',function(){
+    var lines=[
+      'first_name,last_name,group,notes,plus_one,Child_1_Name,Child_2_Name,Child_3_Name,table,seat',
+      'Mandy,Ennis,Bride,,no,,,,Head Table,1',
+      'Charlie,LeVine,Groom,,no,,,,Head Table,2',
+      'Jane,Doe,Ennis family,Vegetarian,yes,,,,Table 3,',
+      'Sam,Rivera,Ennis family,,no,Ava Rivera,Leo,,Table 3,',
+      'John,Smith,College friends,,no,,,,,'
+    ];
+    download('guest-list-template.csv',lines.join('\n'));
+  });
+  $('exportCsv').addEventListener('click',function(){
+    var tmap={}; state.tables.forEach(function(t){tmap[t.id]=t;});
+    state.tables.filter(isSeating).forEach(packSeats);
+    var out=['first_name,last_name,group,notes,plus_one,plus_one_of,child_of,table,table_nickname,seat'];
+    state.guests.slice().sort(function(a,b){return natCmp(a.lastName+a.firstName,b.lastName+b.firstName);}).forEach(function(g){
+      var t=g.tableId?tmap[g.tableId]:null;
+      var pr=g.plusOneOf?byId(g.plusOneOf):null;
+      out.push([g.firstName,g.lastName,g.party,g.notes,adultPlusOnes(g).length?'yes':'',(pr&&!g.isChild)?fullName(pr):'',(pr&&g.isChild)?fullName(pr):'',t?t.label:'',t?t.nickname:'',t&&g.seatIndex!=null?g.seatIndex+1:''].map(csvEscape).join(','));
+    });
+    var cur=plans.filter(function(p){return p.id===planId;})[0];
+    download(((cur?cur.name:'seating').replace(/[^\w\- ]+/g,'').trim()||'seating')+'.csv',out.join('\n'));
+  });
+
+  // RFC-4180-ish parser: handles quoted fields, escaped quotes, CRLF
+  function parseCsv(text){
+    var rows=[],row=[],cell='',q=false;
+    for(var i=0;i<text.length;i++){
+      var ch=text[i];
+      if(q){
+        if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+        else cell+=ch;
+      } else {
+        if(ch==='"') q=true;
+        else if(ch===','){row.push(cell);cell='';}
+        else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cell); rows.push(row); row=[]; cell=''; }
+        else cell+=ch;
+      }
+    }
+    if(cell.length||row.length){row.push(cell);rows.push(row);}
+    return rows.filter(function(r){return r.some(function(c){return c.trim()!=='';});});
+  }
+  var HEADERS={
+    first:['first_name','first','firstname','first name','given','given name'],
+    last:['last_name','last','lastname','last name','surname','family name'],
+    party:['group','party','side','category','table group'],
+    notes:['notes','note','dietary','comments','comment'],
+    table:['table','table_name','table name','table label','table_label'],
+    seat:['seat','seat_number','seat number','seat_no'],
+    plus:['plus_one','plus one','plusone','+1','plus-one','guest','has plus one']
+  };
+  function truthy(v){ return /^(y|yes|true|1|x|\u2713)$/i.test(String(v||'').trim()); }
+  function colIndex(headerRow){
+    var idx={}; var norm=headerRow.map(function(h){return h.trim().toLowerCase().replace(/^\uFEFF/,'');});
+    Object.keys(HEADERS).forEach(function(k){ idx[k]=-1; HEADERS[k].some(function(alias){var i=norm.indexOf(alias); if(i>-1){idx[k]=i;return true;} return false;}); });
+    // any column like Child_1_Name, child 2, kid3, Children
+    idx.children=[];
+    norm.forEach(function(h,i){ if(/^(child|kid)[_\s-]*\d*[_\s-]*(name)?$/.test(h)||h==='children'||h==='kids') idx.children.push(i); });
+    return idx;
+  }
+  $('csvBtn').addEventListener('click',function(){ $('csvFile').value=''; $('csvFile').click(); });
+  $('csvFile').addEventListener('change',function(){
+    var f=this.files&&this.files[0]; if(!f) return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      var rows=parseCsv(String(reader.result||''));
+      if(rows.length<2){ toast('That file has no data rows.','warn'); return; }
+      var idx=colIndex(rows[0]);
+      if(idx.first<0&&idx.last<0){ Modal.info('Could not import','No first_name or last_name column was found. Download the CSV template to see the expected format.'); return; }
+      var have={}; state.guests.forEach(function(g){have[(g.firstName+' '+g.lastName).toLowerCase().trim()]=g;});
+      var added=0,updated=0,seatedN=0,newTables=0,skipped=0;
+      rows.slice(1).forEach(function(r){
+        var get=function(k){ return idx[k]>-1?(r[idx[k]]||'').trim():''; };
+        var first=get('first'), last=get('last');
+        if(!first&&!last){ skipped++; return; }
+        var key=(first+' '+last).toLowerCase().trim();
+        var g=have[key];
+        if(g){ if(get('party')) g.party=get('party'); if(get('notes')) g.notes=get('notes'); updated++; }
+        else { g={id:uid(),firstName:first,lastName:last,party:get('party'),notes:get('notes'),tableId:null,seatIndex:null,plusOneOf:null}; state.guests.push(g); have[key]=g; added++; }
+        if(truthy(get('plus')) && !adultPlusOnes(g).length){ addPlusOne(g); added++; }
+        var existingKids={}; childrenOf(g).forEach(function(c){existingKids[fullName(c).toLowerCase()]=1;});
+        idx.children.forEach(function(ci){
+          (r[ci]||'').split(/[;,]/).forEach(function(nm){
+            nm=nm.trim(); if(!nm) return;
+            var bits=nm.split(/\s+/), fl=(bits.length>1?nm:(nm+' '+(last||''))).toLowerCase().trim();
+            if(existingKids[fl]) return;
+            if(addChild(g,nm)){ existingKids[fl]=1; added++; }
+          });
+        });
+        var tl=get('table');
+        if(tl){
+          var t=state.tables.filter(function(o){return isSeating(o)&&(o.label||'').toLowerCase()===tl.toLowerCase();})[0];
+          if(!t){ t={id:uid(),label:tl,nickname:'',shape:'round',seats:8,x:2,y:2,w:5,h:5}; placeFree(t); state.tables.push(t); newTables++; }
+          var sn=parseInt(get('seat'),10);
+          seatWithPlusOnes(g,t,Number.isInteger(sn)&&sn>=1?sn-1:null); seatedN++;
+        }
+      });
+      renderAll(); queueSave();
+      Modal.info('Imported',added+' added, '+updated+' updated'+(seatedN?'\n'+seatedN+' seated':'')+(newTables?'\n'+newTables+' new table'+(newTables===1?'':'s')+' created as 60" rounds (move/resize as needed)':'')+(skipped?'\n'+skipped+' blank rows skipped':''));
+    };
+    reader.readAsText(f);
+  });
+  function placeFree(t){
+    var step=0; t.x=2; t.y=2;
+    while(state.tables.some(function(o){return Math.abs(o.x-t.x)<t.w+1&&Math.abs(o.y-t.y)<t.h+1;})&&step<400){
+      t.x+=t.w+2; if(t.x+t.w>state.room.widthFt){t.x=2;t.y+=t.h+2;} step++;
+    }
+  }
+
+  window.addEventListener('beforeunload',function(e){
+    if($('status').className.indexOf('saved')===-1 && state){ e.preventDefault(); e.returnValue=''; }
+  });
+})();
+</script>
+</body>
+</html>
